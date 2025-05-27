@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html>
+<head>
+   <meta charset="utf-8">
+   <link rel="stylesheet" href="topnav.css">
+   <meta name="viewport" content="width=device-width, initial-scale=1">
+   <title>Example Gallery - Zach Ulibarri</title>
+   <style>
+a:link { color: #00FFFF; }
+a:visited { color: #00FFFF; }
+
+@import url(//db.onlinewebfonts.com/c/91db3f2094638a07f654364bee66a81e?family=TeXGyreHeros);
+
+body {
+    background-color: black;
+    color: white;
+    font-size: 20px;
+    padding: 10px;
+    margin: 0;
+    font-family: 'TeXGyreHeros', sans-serif;
+}
+
+h1 {
+    color: white;
+    font-weight: bold;
+    text-shadow: 2px 2px 4px #000000;
+}
+
+p {
+    max-width: 800px;
+}
+
+.gallery {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 10px;
+    padding-top: 20px;
+}
+
+.gallery img {
+    width: 100%;
+    height: auto;
+    display: block;
+    cursor: pointer;
+}
+
+/* Desktop layout: exactly 3 columns */
+@media screen and (min-width: 950px) {
+    .gallery {
+        grid-template-columns: repeat(3, 1fr);
+        gap: 15px;
+        padding-left: 5%;
+        padding-right: 5%;
+    }
+}
+
+.topnav {
+    margin-top: 20px;
+}
+
+/* Lightbox styles */
+#lightbox {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100vw;
+    height: 100vh;
+    background-color: rgba(0,0,0,0.95);
+    display: none;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+    flex-direction: column;
+    padding: 20px;
+}
+
+#lightbox img {
+    max-width: 95%;
+    max-height: 90vh;
+    margin-bottom: 20px;
+    box-shadow: 0 0 20px #000;
+}
+
+#lightbox .close {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    font-size: 48px;
+    color: white;
+    cursor: pointer;
+    font-weight: bold;
+    background: rgba(0, 0, 0, 0.6);
+    padding: 8px 16px;
+    border-radius: 8px;
+    line-height: 1;
+    box-shadow: 0 0 10px black;
+    z-index: 1001;
+    user-select: none;
+    transition: background 0.2s ease;
+}
+
+#lightbox .close:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: #00FFFF;
+}
+
+   </style>
+</head>
+<body>
+    <h1>ZEU Photo Example Images</h1>
+
+    <p>Here are some example images of various artists from shows across Ithaca! If you're interested in hiring me to cover one of your sets, please email me at <span id="email"></span></p>
+<script>
+  const user = "zach";
+  const domain = "ulibarri.us";
+  const email = user + "@" + domain;
+  const link = `<a href="mailto:${email}">${email}</a>`;
+  document.getElementById("email").innerHTML = link;
+</script>
+
+    <div class="topnav">
+        <a href="https://www.ulibarri.us/">Home</a>
+    </div>
+
+    <div class="gallery">
+        <!-- Images -->
+        <!-- You can add more if needed -->
+        <img src="images/examples/ZEU-Examples-0.jpg" alt="Example Photo 0">
+        <img src="images/examples/ZEU-Examples-1.jpg" alt="Example Photo 1">
+        <img src="images/examples/ZEU-Examples-2.jpg" alt="Example Photo 2">
+        <img src="images/examples/ZEU-Examples-3.jpg" alt="Example Photo 3">
+        <img src="images/examples/ZEU-Examples-4.jpg" alt="Example Photo 4">
+        <img src="images/examples/ZEU-Examples-5.jpg" alt="Example Photo 5">
+        <img src="images/examples/ZEU-Examples-6.jpg" alt="Example Photo 6">
+        <img src="images/examples/ZEU-Examples-7.jpg" alt="Example Photo 7">
+        <img src="images/examples/ZEU-Examples-8.jpg" alt="Example Photo 8">
+        <img src="images/examples/ZEU-Examples-9.jpg" alt="Example Photo 9">
+        <img src="images/examples/ZEU-Examples-10.jpg" alt="Example Photo 10">
+        <img src="images/examples/ZEU-Examples-11.jpg" alt="Example Photo 11">
+        <img src="images/examples/ZEU-Examples-12.jpg" alt="Example Photo 12">
+        <img src="images/examples/ZEU-Examples-13.jpg" alt="Example Photo 13">
+        <img src="images/examples/ZEU-Examples-14.jpg" alt="Example Photo 14">
+        <img src="images/examples/ZEU-Examples-15.jpg" alt="Example Photo 15">
+        <img src="images/examples/ZEU-Examples-16.jpg" alt="Example Photo 16">
+        <img src="images/examples/ZEU-Examples-17.jpg" alt="Example Photo 17">
+        <img src="images/examples/ZEU-Examples-18.jpg" alt="Example Photo 18">
+        <img src="images/examples/ZEU-Examples-19.jpg" alt="Example Photo 19">
+        <img src="images/examples/ZEU-Examples-20.jpg" alt="Example Photo 20">
+    </div>
+
+    <!-- Lightbox container -->
+    <div id="lightbox">
+        <span class="close" onclick="closeLightbox()">&times;</span>
+        <img id="lightbox-img" src="" alt="Full Image">
+    </div>
+
+    <script>
+    // Add click listeners to all gallery images
+    document.querySelectorAll('.gallery img').forEach(img => {
+        img.addEventListener('click', () => {
+            const lightbox = document.getElementById('lightbox');
+            const lightboxImg = document.getElementById('lightbox-img');
+            lightboxImg.src = img.src;
+            lightbox.style.display = 'flex';
+        });
+    });
+
+    function closeLightbox() {
+        document.getElementById('lightbox').style.display = 'none';
+        document.getElementById('lightbox-img').src = '';
+    }
+
+    // Optional: Close on backdrop click
+    document.getElementById('lightbox').addEventListener('click', (e) => {
+        if (e.target.id === 'lightbox') closeLightbox();
+    });
+    </script>
+</body>
+</html>
