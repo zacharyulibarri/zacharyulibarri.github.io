@@ -1,0 +1,1081 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Story Video Maker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0c0c0e;
+    --panel: #131317;
+    --panel2: #1b1b21;
+    --border: #2a2a34;
+    --accent: #e8ff47;
+    --accent2: #7b5ea7;
+    --text: #e8e8f0;
+    --muted: #6b6b80;
+    --mono: 'Space Mono', monospace;
+    --sans: 'Syne', sans-serif;
+  }
+
+  html { height: 100%; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    min-height: 100%;
+    padding: 24px 16px 60px;
+  }
+
+  .app {
+    max-width: 560px;
+    margin: 0 auto;
+  }
+
+  header {
+    margin-bottom: 32px;
+    padding-top: 8px;
+  }
+  header .eyebrow {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 6px;
+  }
+  header h1 {
+    font-size: 2rem;
+    font-weight: 800;
+    line-height: 1.1;
+    letter-spacing: -0.02em;
+  }
+  header p {
+    margin-top: 8px;
+    font-size: 0.88rem;
+    color: var(--muted);
+    line-height: 1.5;
+  }
+
+  /* Upload area */
+  .upload-zone {
+    border: 1.5px dashed var(--border);
+    border-radius: 14px;
+    padding: 32px 20px;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color 0.2s, background 0.2s;
+    position: relative;
+    margin-bottom: 20px;
+    background: var(--panel);
+  }
+  .upload-zone:hover { border-color: var(--accent); }
+  .upload-zone.drag-over { border-color: var(--accent); background: #1a1a10; }
+  .upload-zone input[type="file"] { display: none; }
+  .upload-zone .upload-icon {
+    font-size: 2.2rem;
+    margin-bottom: 10px;
+    display: block;
+  }
+  .upload-zone .upload-title {
+    font-size: 0.95rem;
+    font-weight: 600;
+    margin-bottom: 4px;
+  }
+  .upload-zone .upload-sub {
+    font-family: var(--mono);
+    font-size: 0.72rem;
+    color: var(--muted);
+  }
+  #preview-wrap {
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+  }
+  #preview-img {
+    max-height: 180px;
+    max-width: 100%;
+    border-radius: 8px;
+    object-fit: contain;
+  }
+  #preview-info {
+    font-family: var(--mono);
+    font-size: 0.72rem;
+    color: var(--accent);
+  }
+  #change-btn {
+    background: none;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--muted);
+    padding: 4px 12px;
+    font-size: 0.75rem;
+    cursor: pointer;
+    font-family: var(--mono);
+    transition: border-color 0.2s, color 0.2s;
+  }
+  #change-btn:hover { border-color: var(--text); color: var(--text); }
+
+  /* Panels */
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 18px 18px 20px;
+    margin-bottom: 14px;
+  }
+  .panel-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 18px;
+  }
+  .panel-badge {
+    font-family: var(--mono);
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    padding: 3px 8px;
+    border-radius: 4px;
+    background: var(--accent);
+    color: #0c0c0e;
+    font-weight: 700;
+  }
+  .panel-badge.zoom { background: var(--accent2); color: #fff; }
+  .panel-badge.out { background: var(--panel2); color: var(--muted); border: 1px solid var(--border); }
+  .panel-title {
+    font-size: 0.95rem;
+    font-weight: 600;
+    flex: 1;
+  }
+
+  /* Fields */
+  .row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .row3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
+  .field { display: flex; flex-direction: column; gap: 5px; }
+  .field label {
+    font-size: 0.72rem;
+    font-family: var(--mono);
+    color: var(--muted);
+    letter-spacing: 0.04em;
+  }
+  .field input[type="number"],
+  .field input[type="text"] {
+    background: var(--panel2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text);
+    padding: 8px 11px;
+    font-size: 0.92rem;
+    font-family: var(--mono);
+    width: 100%;
+    outline: none;
+    transition: border-color 0.2s;
+    -moz-appearance: textfield;
+  }
+  .field input::-webkit-outer-spin-button,
+  .field input::-webkit-inner-spin-button { -webkit-appearance: none; }
+  .field input:focus { border-color: var(--accent); }
+  .field input.zoom-focus:focus { border-color: var(--accent2); }
+
+  .field-mb { margin-bottom: 14px; }
+
+  /* Toggle */
+  .toggle-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 14px;
+    cursor: pointer;
+    user-select: none;
+  }
+  .toggle {
+    width: 44px;
+    height: 24px;
+    background: var(--panel2);
+    border: 1px solid var(--border);
+    border-radius: 99px;
+    position: relative;
+    transition: background 0.2s;
+    flex-shrink: 0;
+  }
+  .toggle::after {
+    content: '';
+    width: 18px;
+    height: 18px;
+    background: var(--muted);
+    border-radius: 50%;
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    transition: left 0.2s, background 0.2s;
+  }
+  input:checked + .toggle { background: #2e2e18; border-color: var(--accent); }
+  input:checked + .toggle::after { left: 22px; background: var(--accent); }
+  .toggle-label { font-size: 0.85rem; color: var(--text); }
+  .toggle-row input[type="checkbox"] { display: none; }
+
+  /* Divider */
+  .divider { border: none; border-top: 1px solid var(--border); margin: 16px 0; }
+
+  /* Generate button */
+  .btn-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 10px;
+    margin-top: 6px;
+  }
+  .generate-btn {
+    width: 100%;
+    padding: 15px;
+    background: var(--accent);
+    color: #0c0c0e;
+    border: none;
+    border-radius: 12px;
+    font-family: var(--sans);
+    font-size: 1rem;
+    font-weight: 800;
+    letter-spacing: 0.01em;
+    cursor: pointer;
+    transition: opacity 0.2s, transform 0.1s;
+    margin-top: 6px;
+  }
+  .generate-btn:hover:not(:disabled) { opacity: 0.88; }
+  .generate-btn:active:not(:disabled) { transform: scale(0.99); }
+  .generate-btn:disabled {
+    background: var(--panel2);
+    color: var(--muted);
+    cursor: not-allowed;
+  }
+
+  /* Progress */
+  .progress-wrap {
+    display: none;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 18px;
+    margin-top: 14px;
+  }
+  .progress-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+  }
+  .progress-label {
+    font-family: var(--mono);
+    font-size: 0.78rem;
+    color: var(--muted);
+  }
+  .progress-pct {
+    font-family: var(--mono);
+    font-size: 0.78rem;
+    color: var(--accent);
+  }
+  .progress-track {
+    height: 4px;
+    background: var(--panel2);
+    border-radius: 99px;
+    overflow: hidden;
+  }
+  .progress-fill {
+    height: 100%;
+    background: var(--accent);
+    border-radius: 99px;
+    width: 0%;
+    transition: width 0.15s ease;
+  }
+
+  /* Outputs */
+  .outputs {
+    display: none;
+    margin-top: 14px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    overflow: hidden;
+  }
+  .output-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 18px;
+  }
+  .output-item + .output-item { border-top: 1px solid var(--border); }
+  .output-info {}
+  .output-name {
+    font-size: 0.9rem;
+    font-weight: 600;
+    margin-bottom: 2px;
+  }
+  .output-meta {
+    font-family: var(--mono);
+    font-size: 0.68rem;
+    color: var(--muted);
+  }
+  .dl-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--panel2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text);
+    text-decoration: none;
+    padding: 7px 14px;
+    font-size: 0.8rem;
+    font-family: var(--mono);
+    transition: border-color 0.2s, color 0.2s;
+    white-space: nowrap;
+  }
+  .dl-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+  .output-actions {
+    display: flex;
+    gap: 8px;
+    flex-shrink: 0;
+  }
+  .mp4-btn {
+    cursor: pointer;
+    font-family: var(--mono);
+    background: var(--panel2);
+    border: 1px solid var(--accent2);
+    color: var(--accent2);
+    transition: border-color 0.2s, color 0.2s;
+  }
+  .mp4-btn:hover:not(:disabled) { border-color: #a07ed0; color: #a07ed0; }
+  .mp4-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    margin-top: 10px;
+    background: var(--panel2);
+    color: var(--accent);
+    border: 1px solid var(--accent);
+  }
+  .combine-btn:hover:not(:disabled) { background: #1e1e12; opacity: 1; }
+
+  .warning {
+    background: #1c1a10;
+    border: 1px solid #3a340f;
+    border-radius: 10px;
+    padding: 12px 14px;
+    font-size: 0.78rem;
+    color: #b8a840;
+    line-height: 1.5;
+    margin-bottom: 16px;
+    font-family: var(--mono);
+    display: none;
+  }
+
+  /* Footer */
+  footer {
+    margin-top: 32px;
+    padding-top: 20px;
+    border-top: 1px solid var(--border);
+    font-family: var(--mono);
+    font-size: 0.68rem;
+    color: var(--muted);
+    line-height: 1.7;
+    text-align: center;
+  }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <header>
+    <div class="eyebrow">Instagram Story Tool</div>
+    <h1>Story Video<br>Maker</h1>
+    <p>Turn a still photo into a slow pan or zoom video, ready for Instagram Stories.</p>
+  </header>
+
+  <!-- Image Upload -->
+  <div class="upload-zone" id="drop-zone">
+    <input type="file" id="file-input" accept="image/*">
+    <div id="upload-prompt">
+      <span class="upload-icon">🖼️</span>
+      <div class="upload-title">Tap to choose a photo</div>
+      <div class="upload-sub">or drag & drop · JPG, PNG, HEIC, WEBP</div>
+    </div>
+    <div id="preview-wrap">
+      <img id="preview-img" alt="preview">
+      <div id="preview-info">—</div>
+      <button id="change-btn">Change image</button>
+    </div>
+  </div>
+
+  <div class="warning" id="compat-warning">
+    ⚠ Your browser may have limited video encoding support. Output will be WebM format.
+    On iOS Safari, consider using Chrome or Firefox for best results.
+  </div>
+
+  <!-- Pan Settings -->
+  <div class="panel">
+    <div class="panel-header">
+      <span class="panel-badge">Pan</span>
+      <span class="panel-title">Slow Scan</span>
+    </div>
+
+    <label class="toggle-row">
+      <input type="checkbox" id="pan-ltr" checked>
+      <span class="toggle"></span>
+      <span class="toggle-label" id="pan-dir-label">Direction: Left → Right</span>
+    </label>
+
+    <div class="row field-mb">
+      <div class="field">
+        <label>Duration (sec)</label>
+        <input type="number" id="pan-duration" value="10" min="1" max="60" step="0.5">
+      </div>
+      <div class="field">
+        <label>Fade in / out (sec)</label>
+        <input type="number" id="pan-fade" value="1" min="0" max="10" step="0.1">
+      </div>
+    </div>
+
+    <div class="field">
+      <label>Off-screen overshoot (px) — black space at start &amp; end</label>
+      <input type="number" id="pan-overshoot" value="200" min="0" max="1080" step="10">
+    </div>
+  </div>
+
+  <!-- Zoom Settings -->
+  <div class="panel">
+    <div class="panel-header">
+      <span class="panel-badge zoom">Zoom</span>
+      <span class="panel-title">Slow Zoom</span>
+    </div>
+
+    <div class="row field-mb">
+      <div class="field">
+        <label>Start zoom (%)</label>
+        <input type="number" class="zoom-focus" id="zoom-start" value="98" min="50" max="200" step="1">
+      </div>
+      <div class="field">
+        <label>End zoom (%)</label>
+        <input type="number" class="zoom-focus" id="zoom-end" value="109" min="50" max="200" step="1">
+      </div>
+    </div>
+
+    <div class="row">
+      <div class="field">
+        <label>Duration (sec)</label>
+        <input type="number" class="zoom-focus" id="zoom-duration" value="8" min="1" max="60" step="0.5">
+      </div>
+      <div class="field">
+        <label>Fade in / out (sec)</label>
+        <input type="number" class="zoom-focus" id="zoom-fade" value="1" min="0" max="10" step="0.1">
+      </div>
+    </div>
+  </div>
+
+  <!-- Output Settings -->
+  <div class="panel">
+    <div class="panel-header">
+      <span class="panel-badge out">Output</span>
+      <span class="panel-title">Video Settings</span>
+    </div>
+    <div class="row3">
+      <div class="field">
+        <label>Width (px)</label>
+        <input type="number" id="out-width" value="1080" min="360" max="3840" step="2">
+      </div>
+      <div class="field">
+        <label>Height (px)</label>
+        <input type="number" id="out-height" value="1920" min="360" max="3840" step="2">
+      </div>
+      <div class="field">
+        <label>FPS</label>
+        <input type="number" id="out-fps" value="60" min="24" max="60" step="1">
+      </div>
+    </div>
+  </div>
+
+  <div class="btn-row">
+    <button class="generate-btn half" id="btn-pan"  disabled>Generate Pan</button>
+    <button class="generate-btn half" id="btn-zoom" disabled>Generate Zoom</button>
+  </div>
+  <button class="generate-btn" id="btn-both" disabled>Generate Both</button>
+
+  <!-- Progress -->
+  <div class="progress-wrap" id="progress-wrap">
+    <div class="progress-header">
+      <span class="progress-label" id="progress-label">Rendering…</span>
+      <span class="progress-pct" id="progress-pct">0%</span>
+    </div>
+    <div class="progress-track">
+      <div class="progress-fill" id="progress-fill"></div>
+    </div>
+  </div>
+
+  <!-- Outputs -->
+  <div class="outputs" id="outputs">
+    <div class="output-item" id="pan-output-row" style="display:none">
+      <div class="output-info">
+        <div class="output-name">Pan Video</div>
+        <div class="output-meta" id="pan-meta">WebM</div>
+      </div>
+      <div class="output-actions">
+        <a id="pan-download" class="dl-btn" download="story_pan.webm">↓ WebM</a>
+        <button class="dl-btn mp4-btn" data-which="pan">→ MP4</button>
+      </div>
+    </div>
+    <div class="output-item" id="zoom-output-row" style="display:none">
+      <div class="output-info">
+        <div class="output-name">Zoom Video</div>
+        <div class="output-meta" id="zoom-meta">WebM</div>
+      </div>
+      <div class="output-actions">
+        <a id="zoom-download" class="dl-btn" download="story_zoom.webm">↓ WebM</a>
+        <button class="dl-btn mp4-btn" data-which="zoom">→ MP4</button>
+      </div>
+    </div>
+    <div class="output-item" id="combined-output-row" style="display:none">
+      <div class="output-info">
+        <div class="output-name">Combined Video</div>
+        <div class="output-meta" id="combined-meta">Pan + Zoom</div>
+      </div>
+      <div class="output-actions">
+        <a id="combined-download" class="dl-btn" download="story_combined.webm">↓ WebM</a>
+        <button class="dl-btn mp4-btn" data-which="combined">→ MP4</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Combine button — appears when both are ready -->
+  <button class="generate-btn combine-btn" id="btn-combine" style="display:none">Combine Pan + Zoom →</button>
+
+  <footer>
+    Renders locally in your browser · No uploads · Files save as .webm<br>
+    Host on GitHub Pages: add this file as index.html and enable Pages in repo settings
+  </footer>
+
+</div><!-- /app -->
+
+<script>
+// ─────────────────────────────────────────────
+//  State
+// ─────────────────────────────────────────────
+let loadedImage = null;
+let panBlob     = null;
+let zoomBlob    = null;
+
+// ─────────────────────────────────────────────
+//  Elements
+// ─────────────────────────────────────────────
+const dropZone     = document.getElementById('drop-zone');
+const fileInput    = document.getElementById('file-input');
+const uploadPrompt = document.getElementById('upload-prompt');
+const previewWrap  = document.getElementById('preview-wrap');
+const previewImg   = document.getElementById('preview-img');
+const previewInfo  = document.getElementById('preview-info');
+const changeBtn    = document.getElementById('change-btn');
+const btnPan       = document.getElementById('btn-pan');
+const btnZoom      = document.getElementById('btn-zoom');
+const btnBoth      = document.getElementById('btn-both');
+const btnCombine   = document.getElementById('btn-combine');
+const progressWrap = document.getElementById('progress-wrap');
+const progressFill = document.getElementById('progress-fill');
+const progressLabel= document.getElementById('progress-label');
+const progressPct  = document.getElementById('progress-pct');
+const outputsEl    = document.getElementById('outputs');
+const panDirLabel  = document.getElementById('pan-dir-label');
+const panLTRCheck  = document.getElementById('pan-ltr');
+
+// ─────────────────────────────────────────────
+//  Upload handling
+// ─────────────────────────────────────────────
+dropZone.addEventListener('click', e => {
+  if (e.target === changeBtn) return;
+  fileInput.click();
+});
+changeBtn.addEventListener('click', e => {
+  e.stopPropagation();
+  fileInput.click();
+});
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+dropZone.addEventListener('drop', e => {
+  e.preventDefault();
+  dropZone.classList.remove('drag-over');
+  const file = e.dataTransfer.files[0];
+  if (file && file.type.startsWith('image/')) loadImage(file);
+});
+fileInput.addEventListener('change', () => {
+  if (fileInput.files[0]) loadImage(fileInput.files[0]);
+});
+
+function loadImage(file) {
+  const url = URL.createObjectURL(file);
+  const img = new Image();
+  img.onload = () => {
+    loadedImage = img;
+    panBlob  = null;
+    zoomBlob = null;
+    previewImg.src = url;
+    previewInfo.textContent = `${img.width} × ${img.height}px · ${(file.size/1024).toFixed(0)} KB`;
+    uploadPrompt.style.display = 'none';
+    previewWrap.style.display = 'flex';
+    setAllBtns(false);
+    resetOutputs();
+  };
+  img.src = url;
+}
+
+function setAllBtns(disabled) {
+  btnPan.disabled  = disabled;
+  btnZoom.disabled = disabled;
+  btnBoth.disabled = disabled;
+  if (!disabled) {
+    btnPan.textContent  = 'Generate Pan';
+    btnZoom.textContent = 'Generate Zoom';
+    btnBoth.textContent = 'Generate Both';
+  }
+}
+
+function lockBtns(label) {
+  setAllBtns(true);
+  btnPan.textContent = btnZoom.textContent = btnBoth.textContent = label;
+}
+
+function resetOutputs() {
+  document.getElementById('pan-output-row').style.display      = 'none';
+  document.getElementById('zoom-output-row').style.display     = 'none';
+  document.getElementById('combined-output-row').style.display = 'none';
+  btnCombine.style.display  = 'none';
+  outputsEl.style.display   = 'none';
+  progressWrap.style.display = 'none';
+}
+
+function showOutputRow(which, blob, frames, mb) {
+  outputsEl.style.display = 'block';
+  const row = document.getElementById(which + '-output-row');
+  row.style.display = 'flex';
+  document.getElementById(which + '-meta').textContent = `WebM · ${frames} frames · ${mb} MB`;
+  document.getElementById(which + '-download').href = URL.createObjectURL(blob);
+  if (panBlob && zoomBlob) btnCombine.style.display = 'block';
+}
+
+// ─────────────────────────────────────────────
+//  Direction toggle label
+// ─────────────────────────────────────────────
+panLTRCheck.addEventListener('change', () => {
+  panDirLabel.textContent = panLTRCheck.checked
+    ? 'Direction: Left → Right'
+    : 'Direction: Right → Left';
+});
+
+// ─────────────────────────────────────────────
+//  MediaRecorder mime type
+// ─────────────────────────────────────────────
+function getBestMime() {
+  const candidates = [
+    'video/webm;codecs=vp9',
+    'video/webm;codecs=vp8',
+    'video/webm',
+  ];
+  for (const m of candidates) {
+    try { if (MediaRecorder.isTypeSupported(m)) return m; } catch(e) {}
+  }
+  return '';
+}
+
+// ─────────────────────────────────────────────
+//  Core renderer
+//  Uses captureStream(fps) so the stream grabs canvas contents automatically.
+//  setInterval drives drawing at the right cadence — no requestFrame needed,
+//  works in all browsers that support MediaRecorder + captureStream.
+// ─────────────────────────────────────────────
+function renderVideo(W, H, fps, totalFrames, drawFn, onProgress) {
+  return new Promise((resolve, reject) => {
+    const canvas = document.createElement('canvas');
+    canvas.width  = W;
+    canvas.height = H;
+    const ctx = canvas.getContext('2d');
+
+    const mime    = getBestMime();
+    // captureStream(fps): browser samples canvas at this framerate automatically
+    const stream  = canvas.captureStream(fps);
+
+    const recOpts = { videoBitsPerSecond: 10_000_000 };
+    if (mime) recOpts.mimeType = mime;
+
+    let recorder;
+    try {
+      recorder = new MediaRecorder(stream, recOpts);
+    } catch(e) {
+      try { recorder = new MediaRecorder(stream); }
+      catch(e2) { reject(new Error('MediaRecorder not supported in this browser.')); return; }
+    }
+
+    const chunks = [];
+    recorder.ondataavailable = e => { if (e.data && e.data.size > 0) chunks.push(e.data); };
+    recorder.onstop = () => resolve(new Blob(chunks, { type: mime || 'video/webm' }));
+    recorder.onerror = e => reject(e.error || new Error('Recording error'));
+
+    // Draw frame 0 onto the canvas before the recorder starts,
+    // so it never captures a blank frame at the top.
+    drawFn(ctx, 0, totalFrames, W, H);
+
+    recorder.start(100); // emit chunks every 100ms so onstop gets data
+
+    let frame = 0;
+    const msPerFrame = 1000 / fps;
+
+    const interval = setInterval(() => {
+      if (frame >= totalFrames) {
+        clearInterval(interval);
+        // Give the recorder a moment to flush its last chunk before stopping
+        setTimeout(() => recorder.stop(), msPerFrame * 3);
+        return;
+      }
+      drawFn(ctx, frame, totalFrames, W, H);
+      onProgress(frame / totalFrames);
+      frame++;
+    }, msPerFrame);
+  });
+}
+
+// ─────────────────────────────────────────────
+//  Fade overlay helper
+// ─────────────────────────────────────────────
+function drawFadeOverlay(ctx, frame, totalFrames, fadeFrames, W, H) {
+  let alpha = 0;
+  if (frame < fadeFrames) {
+    alpha = 1 - frame / fadeFrames;
+  } else if (frame >= totalFrames - fadeFrames) {
+    const fromEnd = totalFrames - frame;
+    alpha = 1 - (fromEnd / fadeFrames);
+  }
+  if (alpha > 0) {
+    ctx.fillStyle = `rgba(0,0,0,${Math.min(1, Math.max(0, alpha))})`;
+    ctx.fillRect(0, 0, W, H);
+  }
+}
+
+// ─────────────────────────────────────────────
+//  Settings helper
+// ─────────────────────────────────────────────
+function getVal(id) { return parseFloat(document.getElementById(id).value); }
+function getInt(id) { return parseInt(document.getElementById(id).value, 10); }
+
+// ─────────────────────────────────────────────
+//  Update progress UI
+// ─────────────────────────────────────────────
+function setProgress(fraction, label) {
+  const pct = Math.round(fraction * 100);
+  progressFill.style.width = pct + '%';
+  progressPct.textContent = pct + '%';
+  if (label) progressLabel.textContent = label;
+}
+
+// ─────────────────────────────────────────────
+//  Build pan/zoom params from UI
+// ─────────────────────────────────────────────
+function getPanParams() {
+  const img = loadedImage;
+  const W   = getInt('out-width');
+  const H   = getInt('out-height');
+  const fps = Math.min(60, Math.max(1, getInt('out-fps')));
+  const panDuration  = getVal('pan-duration');
+  const panFade      = getVal('pan-fade');
+  const panOvershoot = getInt('pan-overshoot');
+  const panLTR       = panLTRCheck.checked;
+  const panFrames    = Math.ceil(panDuration * fps);
+  const panFadeF     = Math.ceil(panFade * fps);
+  const scaleH  = H / img.height;
+  const panImgW = img.width * scaleH;
+  const panImgH = H;
+  const minX = -(panImgW - W) - panOvershoot;
+  const maxX = panOvershoot;
+  const panStartX = panLTR ? maxX : minX;
+  const panEndX   = panLTR ? minX : maxX;
+  return { W, H, fps, panFrames, panFadeF, panImgW, panImgH, panStartX, panEndX };
+}
+
+function getZoomParams() {
+  const img = loadedImage;
+  const W   = getInt('out-width');
+  const H   = getInt('out-height');
+  const fps = Math.min(60, Math.max(1, getInt('out-fps')));
+  const zoomStartPct = getVal('zoom-start') / 100;
+  const zoomEndPct   = getVal('zoom-end')   / 100;
+  const zoomDuration = getVal('zoom-duration');
+  const zoomFade     = getVal('zoom-fade');
+  const zoomFrames   = Math.ceil(zoomDuration * fps);
+  const zoomFadeF    = Math.ceil(zoomFade * fps);
+  return { W, H, fps, zoomFrames, zoomFadeF, zoomStartPct, zoomEndPct };
+}
+
+function makePanDrawFn(p) {
+  return (ctx, frame, total, w, h) => {
+    ctx.fillStyle = '#000';
+    ctx.fillRect(0, 0, w, h);
+    const t = total > 1 ? frame / (total - 1) : 0;
+    const x = p.panStartX + (p.panEndX - p.panStartX) * t;
+    ctx.drawImage(loadedImage, x, 0, p.panImgW, p.panImgH);
+    drawFadeOverlay(ctx, frame, total, p.panFadeF, w, h);
+  };
+}
+
+function makeZoomDrawFn(p) {
+  return (ctx, frame, total, w, h) => {
+    ctx.fillStyle = '#000';
+    ctx.fillRect(0, 0, w, h);
+    const t = total > 1 ? frame / (total - 1) : 0;
+    const scale = p.zoomStartPct + (p.zoomEndPct - p.zoomStartPct) * t;
+    const drawW = w * scale;
+    const drawH = loadedImage.height * (drawW / loadedImage.width);
+    ctx.drawImage(loadedImage, (w - drawW) / 2, (h - drawH) / 2, drawW, drawH);
+    drawFadeOverlay(ctx, frame, total, p.zoomFadeF, w, h);
+  };
+}
+
+// ─────────────────────────────────────────────
+//  Button handlers
+// ─────────────────────────────────────────────
+btnPan.addEventListener('click', async () => {
+  if (!loadedImage) return;
+  lockBtns('Rendering…');
+  progressWrap.style.display = 'block';
+  const p = getPanParams();
+  try {
+    setProgress(0, 'Rendering pan video…');
+    panBlob = await renderVideo(p.W, p.H, p.fps, p.panFrames, makePanDrawFn(p),
+      frac => setProgress(frac, 'Rendering pan video…'));
+    setProgress(1, 'Done ✓');
+    showOutputRow('pan', panBlob, p.panFrames, (panBlob.size/(1024*1024)).toFixed(1));
+  } catch(err) { setProgress(0, 'Error: ' + err.message); console.error(err); }
+  setAllBtns(false);
+});
+
+btnZoom.addEventListener('click', async () => {
+  if (!loadedImage) return;
+  lockBtns('Rendering…');
+  progressWrap.style.display = 'block';
+  const p = getZoomParams();
+  try {
+    setProgress(0, 'Rendering zoom video…');
+    zoomBlob = await renderVideo(p.W, p.H, p.fps, p.zoomFrames, makeZoomDrawFn(p),
+      frac => setProgress(frac, 'Rendering zoom video…'));
+    setProgress(1, 'Done ✓');
+    showOutputRow('zoom', zoomBlob, p.zoomFrames, (zoomBlob.size/(1024*1024)).toFixed(1));
+  } catch(err) { setProgress(0, 'Error: ' + err.message); console.error(err); }
+  setAllBtns(false);
+});
+
+btnBoth.addEventListener('click', async () => {
+  if (!loadedImage) return;
+  lockBtns('Rendering…');
+  progressWrap.style.display = 'block';
+  const pp = getPanParams();
+  const zp = getZoomParams();
+  try {
+    setProgress(0, 'Rendering pan video…');
+    panBlob = await renderVideo(pp.W, pp.H, pp.fps, pp.panFrames, makePanDrawFn(pp),
+      frac => setProgress(frac * 0.5, 'Rendering pan video…'));
+    showOutputRow('pan', panBlob, pp.panFrames, (panBlob.size/(1024*1024)).toFixed(1));
+
+    setProgress(0.5, 'Rendering zoom video…');
+    zoomBlob = await renderVideo(zp.W, zp.H, zp.fps, zp.zoomFrames, makeZoomDrawFn(zp),
+      frac => setProgress(0.5 + frac * 0.5, 'Rendering zoom video…'));
+    setProgress(1, 'Done ✓');
+    showOutputRow('zoom', zoomBlob, zp.zoomFrames, (zoomBlob.size/(1024*1024)).toFixed(1));
+  } catch(err) { setProgress(0, 'Error: ' + err.message); console.error(err); }
+  setAllBtns(false);
+});
+
+// ─────────────────────────────────────────────
+//  Combine: re-render both sequences into one continuous recorder session
+// ─────────────────────────────────────────────
+btnCombine.addEventListener('click', async () => {
+  if (!panBlob || !zoomBlob) return;
+  lockBtns('Combining…');
+  btnCombine.disabled = true;
+  btnCombine.textContent = 'Combining…';
+  progressWrap.style.display = 'block';
+  setProgress(0, 'Combining videos…');
+
+  const pp  = getPanParams();
+  const zp  = getZoomParams();
+  const W   = pp.W;
+  const H   = pp.H;
+  const fps = pp.fps;
+  const mime = getBestMime();
+  const totalFrames = pp.panFrames + zp.zoomFrames;
+
+  const panDraw  = makePanDrawFn(pp);
+  const zoomDraw = makeZoomDrawFn(zp);
+
+  try {
+    const canvas = document.createElement('canvas');
+    canvas.width = W; canvas.height = H;
+    const ctx = canvas.getContext('2d');
+    const stream = canvas.captureStream(fps);
+    const recOpts = { videoBitsPerSecond: 10_000_000 };
+    if (mime) recOpts.mimeType = mime;
+    const recorder = new MediaRecorder(stream, recOpts);
+    const chunks = [];
+    recorder.ondataavailable = e => { if (e.data?.size > 0) chunks.push(e.data); };
+
+    const combined = await new Promise((resolve, reject) => {
+      recorder.onstop = () => resolve(new Blob(chunks, { type: mime || 'video/webm' }));
+      recorder.onerror = e => reject(e.error);
+
+      // Draw first frame before starting so recorder never sees a blank canvas
+      panDraw(ctx, 0, pp.panFrames, W, H);
+      recorder.start(100);
+
+      let frame = 0;
+      const msPerFrame = 1000 / fps;
+
+      const interval = setInterval(() => {
+        if (frame >= totalFrames) {
+          clearInterval(interval);
+          setTimeout(() => recorder.stop(), msPerFrame * 3);
+          return;
+        }
+        if (frame < pp.panFrames) {
+          panDraw(ctx, frame, pp.panFrames, W, H);
+        } else {
+          const zFrame = frame - pp.panFrames;
+          zoomDraw(ctx, zFrame, zp.zoomFrames, W, H);
+        }
+        setProgress(frame / totalFrames, frame < pp.panFrames ? 'Combining — pan segment…' : 'Combining — zoom segment…');
+        frame++;
+      }, msPerFrame);
+    });
+
+    setProgress(1, 'Done ✓');
+    const mb = (combined.size / (1024 * 1024)).toFixed(1);
+    document.getElementById('combined-meta').textContent = `WebM · Pan + Zoom · ${mb} MB`;
+    document.getElementById('combined-download').href = URL.createObjectURL(combined);
+    document.getElementById('combined-output-row').style.display = 'flex';
+    outputsEl.style.display = 'block';
+
+  } catch(err) { setProgress(0, 'Error: ' + err.message); console.error(err); }
+
+  setAllBtns(false);
+  btnCombine.disabled = false;
+  btnCombine.textContent = 'Combine Pan + Zoom →';
+});
+
+// ─────────────────────────────────────────────
+//  MP4 conversion via ffmpeg.wasm 0.12 (no SharedArrayBuffer needed)
+// ─────────────────────────────────────────────
+let ffmpegReady = false;
+let ff = null;
+
+async function loadFFmpeg() {
+  if (ffmpegReady) return ff;
+  progressWrap.style.display = 'block';
+  setProgress(0, 'Loading FFmpeg (one-time ~32MB download)…');
+
+  // Load UMD builds from unpkg — 0.12.x single-threaded core requires no SharedArrayBuffer
+  await loadScript('https://unpkg.com/@ffmpeg/ffmpeg@0.12.6/dist/umd/ffmpeg.js');
+  await loadScript('https://unpkg.com/@ffmpeg/util@0.12.1/dist/umd/index.js');
+
+  const { FFmpeg } = FFmpegWASM;
+  ff = new FFmpeg();
+  ff.on('progress', ({ progress }) => setProgress(progress * 0.9, 'Converting to MP4…'));
+
+  await ff.load({
+    // Non-multithreaded core — works on any origin without special headers
+    coreURL: 'https://unpkg.com/@ffmpeg/core@0.12.6/dist/umd/ffmpeg-core.js',
+  });
+
+  ffmpegReady = true;
+  return ff;
+}
+
+function loadScript(src) {
+  return new Promise((resolve, reject) => {
+    if (document.querySelector(`script[src="${src}"]`)) { resolve(); return; }
+    const s = document.createElement('script');
+    s.src = src;
+    s.onload = resolve;
+    s.onerror = () => reject(new Error('Failed to load: ' + src));
+    document.head.appendChild(s);
+  });
+}
+
+async function convertToMp4(blob, which) {
+  const engine = await loadFFmpeg();
+  const { fetchFile } = FFmpegUtil;
+
+  await engine.writeFile('input.webm', await fetchFile(blob));
+  await engine.exec([
+    '-i', 'input.webm',
+    '-c:v', 'libx264',
+    '-preset', 'fast',
+    '-crf', '18',
+    '-pix_fmt', 'yuv420p',
+    '-movflags', '+faststart',
+    'output.mp4'
+  ]);
+  const data = await engine.readFile('output.mp4');
+  await engine.deleteFile('input.webm');
+  await engine.deleteFile('output.mp4');
+  return new Blob([data.buffer], { type: 'video/mp4' });
+}
+
+// Wire up MP4 convert buttons
+document.addEventListener('click', async e => {
+  const btn = e.target.closest('.mp4-btn');
+  if (!btn) return;
+  const which = btn.dataset.which;
+
+  let blob;
+  if (which === 'pan')      blob = panBlob;
+  else if (which === 'zoom') blob = zoomBlob;
+  else {
+    const href = document.getElementById('combined-download').href;
+    if (!href || href === window.location.href) return;
+    blob = await fetch(href).then(r => r.blob());
+  }
+  if (!blob) return;
+
+  btn.disabled = true;
+  btn.textContent = 'Converting…';
+  progressWrap.style.display = 'block';
+
+  try {
+    const mp4 = await convertToMp4(blob, which);
+    setProgress(1, 'Done ✓');
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(mp4);
+    a.download = `story_${which}.mp4`;
+    a.click();
+  } catch(err) {
+    setProgress(0, 'MP4 conversion failed: ' + err.message);
+    console.error(err);
+  }
+
+  btn.disabled = false;
+  btn.textContent = '→ MP4';
+});
+
+// ─────────────────────────────────────────────
+//  Compatibility check
+// ─────────────────────────────────────────────
+(function checkCompat() {
+  const warn = document.getElementById('compat-warning');
+  const ua = navigator.userAgent;
+  // Safari on iOS doesn't support MediaRecorder well
+  if (/iPhone|iPad/.test(ua) && /Safari/.test(ua) && !/Chrome/.test(ua)) {
+    warn.style.display = 'block';
+  }
+  if (typeof MediaRecorder === 'undefined') {
+    warn.style.display = 'block';
+    warn.textContent = '⚠ Your browser does not support video recording. Please use Chrome, Firefox, or Edge.';
+  }
+})();
+</script>
+</body>
+</html>
