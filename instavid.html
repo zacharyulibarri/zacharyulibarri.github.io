@@ -889,9 +889,15 @@ function getZoomParams() {
   return { W, H, fps, zoomFrames, zoomFadeF, zoomStartPct, zoomEndPct };
 }
 
+// ─────────────────────────────────────────────
+//  Motion blur helper
+//  Renders `samples` sub-frames around the current position and averages them.
+//  shutterAngle: 0.5 = 180° shutter (cinematic), 1.0 = full frame exposure
+// ─────────────────────────────────────────────
+const MOTION_BLUR_SAMPLES = 8;
+const SHUTTER_ANGLE = 0.5; // 180 degree shutter — matches cinema cameras
+
 function makePanDrawFn(p) {
-  // Pre-render the image once at exact target dimensions into an offscreen canvas.
-  // This eliminates per-frame resampling, which causes shimmer/jitter on edges.
   const offscreen = document.createElement('canvas');
   offscreen.width  = Math.round(p.panImgW);
   offscreen.height = Math.round(p.panImgH);
@@ -903,23 +909,28 @@ function makePanDrawFn(p) {
   return (ctx, frame, total, w, h) => {
     ctx.fillStyle = '#000';
     ctx.fillRect(0, 0, w, h);
-    const t = total > 1 ? frame / (total - 1) : 0;
-    // Negative x pans the pre-rendered strip left or right
-    const x = Math.round(p.panStartX + (p.panEndX - p.panStartX) * t);
-    ctx.drawImage(offscreen, x, 0);
+
+    // Alpha sequence 1/N, 1/(N-1), ..., 1/2, 1 gives exactly equal contributions
+    // from each sub-frame when composited with source-over. Simple 1/N alpha
+    // gives only ~63% brightness due to how source-over accumulates.
+    for (let s = 0; s < MOTION_BLUR_SAMPLES; s++) {
+      const tOffset = (s / MOTION_BLUR_SAMPLES) * SHUTTER_ANGLE;
+      const t = total > 1 ? (frame + tOffset) / (total - 1) : 0;
+      const x = Math.round(p.panStartX + (p.panEndX - p.panStartX) * t);
+      ctx.globalAlpha = 1 / (MOTION_BLUR_SAMPLES - s);
+      ctx.drawImage(offscreen, x, 0);
+    }
+    ctx.globalAlpha = 1;
+
     drawFadeOverlay(ctx, frame, total, p.panFadeF, w, h);
   };
 }
 
 function makeZoomDrawFn(p) {
-  // Pre-render at the maximum zoom size so every frame samples from an identical source.
   const maxScale = Math.max(p.zoomStartPct, p.zoomEndPct);
-  const offscreen = document.createElement('canvas');
-  offscreen.width  = Math.round(p.W * maxScale);
-  offscreen.height = Math.round(p.H * maxScale);  // maintain aspect of output frame
-  // Actually we need to fit the source image correctly — scale to output-frame size at maxScale
   const srcW = Math.round(p.W * maxScale);
   const srcH = Math.round(loadedImage.height * (srcW / loadedImage.width));
+  const offscreen = document.createElement('canvas');
   offscreen.width  = srcW;
   offscreen.height = srcH;
   const octx = offscreen.getContext('2d');
@@ -932,15 +943,21 @@ function makeZoomDrawFn(p) {
     ctx.imageSmoothingQuality = 'high';
     ctx.fillStyle = '#000';
     ctx.fillRect(0, 0, w, h);
-    const t = total > 1 ? frame / (total - 1) : 0;
-    const scale = p.zoomStartPct + (p.zoomEndPct - p.zoomStartPct) * t;
-    // Scale relative to maxScale pre-render — only a small range (e.g. 0.94–1.0x of offscreen)
-    const ratio = scale / maxScale;
-    const drawW = Math.round(srcW * ratio);
-    const drawH = Math.round(srcH * ratio);
-    const dx    = Math.round((w - drawW) / 2);
-    const dy    = Math.round((h - drawH) / 2);
-    ctx.drawImage(offscreen, dx, dy, drawW, drawH);
+
+    for (let s = 0; s < MOTION_BLUR_SAMPLES; s++) {
+      const tOffset = (s / MOTION_BLUR_SAMPLES) * SHUTTER_ANGLE;
+      const t = total > 1 ? (frame + tOffset) / (total - 1) : 0;
+      const scale = p.zoomStartPct + (p.zoomEndPct - p.zoomStartPct) * t;
+      const ratio = scale / maxScale;
+      const drawW = Math.round(srcW * ratio);
+      const drawH = Math.round(srcH * ratio);
+      const dx    = Math.round((w - drawW) / 2);
+      const dy    = Math.round((h - drawH) / 2);
+      ctx.globalAlpha = 1 / (MOTION_BLUR_SAMPLES - s);
+      ctx.drawImage(offscreen, dx, dy, drawW, drawH);
+    }
+    ctx.globalAlpha = 1;
+
     drawFadeOverlay(ctx, frame, total, p.zoomFadeF, w, h);
   };
 }
