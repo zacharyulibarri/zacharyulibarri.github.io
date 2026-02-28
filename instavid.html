@@ -972,27 +972,7 @@ btnCombine.addEventListener('click', async () => {
 let ffmpegReady = false;
 let ff = null;
 
-async function loadFFmpeg() {
-  if (ffmpegReady) return ff;
-  progressWrap.style.display = 'block';
-  setProgress(0, 'Loading FFmpeg (one-time ~32MB download)…');
-
-  // Load UMD builds from unpkg — 0.12.x single-threaded core requires no SharedArrayBuffer
-  await loadScript('https://unpkg.com/@ffmpeg/ffmpeg@0.12.6/dist/umd/ffmpeg.js');
-  await loadScript('https://unpkg.com/@ffmpeg/util@0.12.1/dist/umd/index.js');
-
-  const { FFmpeg } = FFmpegWASM;
-  ff = new FFmpeg();
-  ff.on('progress', ({ progress }) => setProgress(progress * 0.9, 'Converting to MP4…'));
-
-  await ff.load({
-    // Non-multithreaded core — works on any origin without special headers
-    coreURL: 'https://unpkg.com/@ffmpeg/core@0.12.6/dist/umd/ffmpeg-core.js',
-  });
-
-  ffmpegReady = true;
-  return ff;
-}
+const CDN = 'https://cdn.jsdelivr.net/npm';
 
 function loadScript(src) {
   return new Promise((resolve, reject) => {
@@ -1005,20 +985,64 @@ function loadScript(src) {
   });
 }
 
-async function convertToMp4(blob, which) {
+async function loadFFmpeg() {
+  if (ffmpegReady) return ff;
+  progressWrap.style.display = 'block';
+  setProgress(0, 'Downloading FFmpeg (~30MB, first time only)…');
+
+  await loadScript(`${CDN}/@ffmpeg/ffmpeg@0.12.6/dist/umd/ffmpeg.js`);
+  await loadScript(`${CDN}/@ffmpeg/util@0.12.1/dist/umd/index.js`);
+
+  const { FFmpeg } = FFmpegWASM;
+  ff = new FFmpeg();
+
+  // Progress fires during conversion, not loading — show a fake ticker during load
+  let loadPct = 0;
+  const ticker = setInterval(() => {
+    loadPct = Math.min(0.92, loadPct + 0.008);
+    setProgress(loadPct, 'Loading FFmpeg engine…');
+  }, 300);
+
+  try {
+    await ff.load({
+      coreURL: `${CDN}/@ffmpeg/core@0.12.6/dist/umd/ffmpeg-core.js`,
+      wasmURL: `${CDN}/@ffmpeg/core@0.12.6/dist/umd/ffmpeg-core.wasm`,
+    });
+  } finally {
+    clearInterval(ticker);
+  }
+
+  // Wire conversion progress now that ff is loaded
+  ff.on('progress', ({ progress }) => {
+    setProgress(Math.min(0.98, progress), 'Converting to MP4…');
+  });
+
+  ffmpegReady = true;
+  setProgress(1, 'FFmpeg ready');
+  return ff;
+}
+
+async function convertToMp4(blob) {
   const engine = await loadFFmpeg();
   const { fetchFile } = FFmpegUtil;
 
+  setProgress(0, 'Preparing file…');
   await engine.writeFile('input.webm', await fetchFile(blob));
+
   await engine.exec([
     '-i', 'input.webm',
     '-c:v', 'libx264',
+    '-profile:v', 'high',
+    '-level', '4.0',
     '-preset', 'fast',
     '-crf', '18',
     '-pix_fmt', 'yuv420p',
+    '-r', '30',
+    '-an',
     '-movflags', '+faststart',
     'output.mp4'
   ]);
+
   const data = await engine.readFile('output.mp4');
   await engine.deleteFile('input.webm');
   await engine.deleteFile('output.mp4');
@@ -1032,7 +1056,7 @@ document.addEventListener('click', async e => {
   const which = btn.dataset.which;
 
   let blob;
-  if (which === 'pan')      blob = panBlob;
+  if (which === 'pan')       blob = panBlob;
   else if (which === 'zoom') blob = zoomBlob;
   else {
     const href = document.getElementById('combined-download').href;
@@ -1046,7 +1070,7 @@ document.addEventListener('click', async e => {
   progressWrap.style.display = 'block';
 
   try {
-    const mp4 = await convertToMp4(blob, which);
+    const mp4 = await convertToMp4(blob);
     setProgress(1, 'Done ✓');
     const a = document.createElement('a');
     a.href = URL.createObjectURL(mp4);
