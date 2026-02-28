@@ -657,8 +657,14 @@ function showOutputRow(which, blob, frames, mb) {
   outputsEl.style.display = 'block';
   const row = document.getElementById(which + '-output-row');
   row.style.display = 'flex';
-  document.getElementById(which + '-meta').textContent = `WebM · ${frames} frames · ${mb} MB`;
-  document.getElementById(which + '-download').href = URL.createObjectURL(blob);
+  document.getElementById(which + '-meta').textContent = `${OUTPUT_LABEL} · ${frames} frames · ${mb} MB`;
+  const dl = document.getElementById(which + '-download');
+  dl.href = URL.createObjectURL(blob);
+  dl.download = `story_${which}.${OUTPUT_EXT}`;
+  dl.textContent = `↓ ${OUTPUT_LABEL}`;
+  // Hide MP4 convert button if we already output MP4
+  const mp4btn = row.querySelector('.mp4-btn');
+  if (mp4btn) mp4btn.style.display = hasWebCodecs ? 'none' : '';
   if (panBlob && zoomBlob) btnCombine.style.display = 'block';
 }
 
@@ -672,74 +678,144 @@ panLTRCheck.addEventListener('change', () => {
 });
 
 // ─────────────────────────────────────────────
-//  MediaRecorder mime type
+//  Capability detection
+// ─────────────────────────────────────────────
+const hasWebCodecs = typeof VideoEncoder !== 'undefined' && typeof VideoFrame !== 'undefined';
+const OUTPUT_EXT   = hasWebCodecs ? 'mp4'  : 'webm';
+const OUTPUT_LABEL = hasWebCodecs ? 'MP4'  : 'WebM';
+
+// ─────────────────────────────────────────────
+//  mp4-muxer loader (v3 — stable API, ~50KB)
+// ─────────────────────────────────────────────
+let mp4MuxerReady = false;
+function loadScript(src) {
+  return new Promise((resolve, reject) => {
+    if (document.querySelector(`script[src="${src}"]`)) { resolve(); return; }
+    const s = document.createElement('script');
+    s.src = src; s.onload = resolve;
+    s.onerror = () => reject(new Error('Failed to load: ' + src));
+    document.head.appendChild(s);
+  });
+}
+async function ensureMp4Muxer() {
+  if (mp4MuxerReady) return;
+  await loadScript('https://cdn.jsdelivr.net/npm/mp4-muxer@3/build/mp4-muxer.js');
+  mp4MuxerReady = true;
+}
+
+// ─────────────────────────────────────────────
+//  WebCodecs → MP4 (Chrome / Android Chrome)
+// ─────────────────────────────────────────────
+async function renderVideoMP4(W, H, fps, totalFrames, drawFn, onProgress) {
+  await ensureMp4Muxer();
+  const { Muxer, ArrayBufferTarget } = Mp4Muxer;
+
+  const target = new ArrayBufferTarget();
+  const muxer  = new Muxer({
+    target,
+    video: { codec: 'avc', width: W, height: H },
+    fastStart: 'in-memory',
+    firstTimestampBehavior: 'offset',
+  });
+
+  let encError = null;
+  const chunks = [];
+  const encoder = new VideoEncoder({
+    output: (chunk, meta) => chunks.push({ chunk, meta }),
+    error:  (e) => { encError = e; },
+  });
+
+  // avc1.64002A = High Profile Level 4.2, supports 1080p vertical @ 60fps
+  await encoder.configure({
+    codec:       'avc1.64002A',
+    width:       W,
+    height:      H,
+    bitrate:     10_000_000,
+    framerate:   fps,
+    latencyMode: 'quality',
+  });
+
+  const canvas = document.createElement('canvas');
+  canvas.width = W; canvas.height = H;
+  const ctx = canvas.getContext('2d', { willReadFrequently: false });
+  const usPerFrame = 1_000_000 / fps;
+
+  for (let i = 0; i < totalFrames; i++) {
+    if (encError) throw encError;
+    drawFn(ctx, i, totalFrames, W, H);
+
+    const timestamp = Math.floor(i * usPerFrame);
+    const duration  = Math.floor((i + 1) * usPerFrame) - timestamp;
+    const vf = new VideoFrame(canvas, { timestamp, duration });
+    encoder.encode(vf, { keyFrame: i === 0 || i % (fps * 2) === 0 });
+    vf.close();
+
+    onProgress(i / totalFrames);
+    if (i % 10 === 0) await new Promise(r => setTimeout(r, 0));
+  }
+
+  await encoder.flush();
+  if (encError) throw encError;
+
+  // Sort chunks by timestamp before muxing — async encoder output can arrive out of order
+  chunks.sort((a, b) => a.chunk.timestamp - b.chunk.timestamp);
+  for (const { chunk, meta } of chunks) {
+    muxer.addVideoChunk(chunk, meta);
+  }
+
+  muxer.finalize();
+  return new Blob([target.buffer], { type: 'video/mp4' });
+}
+
+// ─────────────────────────────────────────────
+//  MediaRecorder → WebM fallback (Firefox / Safari)
 // ─────────────────────────────────────────────
 function getBestMime() {
-  const candidates = [
-    'video/webm;codecs=vp9',
-    'video/webm;codecs=vp8',
-    'video/webm',
-  ];
-  for (const m of candidates) {
+  for (const m of ['video/webm;codecs=vp9','video/webm;codecs=vp8','video/webm']) {
     try { if (MediaRecorder.isTypeSupported(m)) return m; } catch(e) {}
   }
   return '';
 }
 
-// ─────────────────────────────────────────────
-//  Core renderer
-//  Uses captureStream(fps) so the stream grabs canvas contents automatically.
-//  setInterval drives drawing at the right cadence — no requestFrame needed,
-//  works in all browsers that support MediaRecorder + captureStream.
-// ─────────────────────────────────────────────
-function renderVideo(W, H, fps, totalFrames, drawFn, onProgress) {
+function renderVideoWebM(W, H, fps, totalFrames, drawFn, onProgress) {
   return new Promise((resolve, reject) => {
     const canvas = document.createElement('canvas');
-    canvas.width  = W;
-    canvas.height = H;
-    const ctx = canvas.getContext('2d');
-
-    const mime    = getBestMime();
-    // captureStream(fps): browser samples canvas at this framerate automatically
-    const stream  = canvas.captureStream(fps);
-
+    canvas.width = W; canvas.height = H;
+    const ctx  = canvas.getContext('2d');
+    const mime = getBestMime();
+    const stream = canvas.captureStream(fps);
     const recOpts = { videoBitsPerSecond: 10_000_000 };
     if (mime) recOpts.mimeType = mime;
-
     let recorder;
-    try {
-      recorder = new MediaRecorder(stream, recOpts);
-    } catch(e) {
+    try { recorder = new MediaRecorder(stream, recOpts); }
+    catch(e) {
       try { recorder = new MediaRecorder(stream); }
-      catch(e2) { reject(new Error('MediaRecorder not supported in this browser.')); return; }
+      catch(e2) { reject(new Error('MediaRecorder not supported.')); return; }
     }
-
     const chunks = [];
-    recorder.ondataavailable = e => { if (e.data && e.data.size > 0) chunks.push(e.data); };
-    recorder.onstop = () => resolve(new Blob(chunks, { type: mime || 'video/webm' }));
+    recorder.ondataavailable = e => { if (e.data?.size > 0) chunks.push(e.data); };
+    recorder.onstop  = () => resolve(new Blob(chunks, { type: mime || 'video/webm' }));
     recorder.onerror = e => reject(e.error || new Error('Recording error'));
-
-    // Draw frame 0 onto the canvas before the recorder starts,
-    // so it never captures a blank frame at the top.
     drawFn(ctx, 0, totalFrames, W, H);
-
-    recorder.start(100); // emit chunks every 100ms so onstop gets data
-
+    recorder.start(100);
     let frame = 0;
-    const msPerFrame = 1000 / fps;
-
-    const interval = setInterval(() => {
-      if (frame >= totalFrames) {
-        clearInterval(interval);
-        // Give the recorder a moment to flush its last chunk before stopping
-        setTimeout(() => recorder.stop(), msPerFrame * 3);
-        return;
-      }
+    const ms = 1000 / fps;
+    const iv = setInterval(() => {
+      if (frame >= totalFrames) { clearInterval(iv); setTimeout(() => recorder.stop(), ms * 3); return; }
       drawFn(ctx, frame, totalFrames, W, H);
       onProgress(frame / totalFrames);
       frame++;
-    }, msPerFrame);
+    }, ms);
   });
+}
+
+// ─────────────────────────────────────────────
+//  Unified renderer
+// ─────────────────────────────────────────────
+function renderVideo(W, H, fps, totalFrames, drawFn, onProgress) {
+  return hasWebCodecs
+    ? renderVideoMP4(W, H, fps, totalFrames, drawFn, onProgress)
+    : renderVideoWebM(W, H, fps, totalFrames, drawFn, onProgress);
 }
 
 // ─────────────────────────────────────────────
@@ -814,25 +890,57 @@ function getZoomParams() {
 }
 
 function makePanDrawFn(p) {
+  // Pre-render the image once at exact target dimensions into an offscreen canvas.
+  // This eliminates per-frame resampling, which causes shimmer/jitter on edges.
+  const offscreen = document.createElement('canvas');
+  offscreen.width  = Math.round(p.panImgW);
+  offscreen.height = Math.round(p.panImgH);
+  const octx = offscreen.getContext('2d');
+  octx.imageSmoothingEnabled = true;
+  octx.imageSmoothingQuality = 'high';
+  octx.drawImage(loadedImage, 0, 0, offscreen.width, offscreen.height);
+
   return (ctx, frame, total, w, h) => {
     ctx.fillStyle = '#000';
     ctx.fillRect(0, 0, w, h);
     const t = total > 1 ? frame / (total - 1) : 0;
-    const x = p.panStartX + (p.panEndX - p.panStartX) * t;
-    ctx.drawImage(loadedImage, x, 0, p.panImgW, p.panImgH);
+    // Negative x pans the pre-rendered strip left or right
+    const x = Math.round(p.panStartX + (p.panEndX - p.panStartX) * t);
+    ctx.drawImage(offscreen, x, 0);
     drawFadeOverlay(ctx, frame, total, p.panFadeF, w, h);
   };
 }
 
 function makeZoomDrawFn(p) {
+  // Pre-render at the maximum zoom size so every frame samples from an identical source.
+  const maxScale = Math.max(p.zoomStartPct, p.zoomEndPct);
+  const offscreen = document.createElement('canvas');
+  offscreen.width  = Math.round(p.W * maxScale);
+  offscreen.height = Math.round(p.H * maxScale);  // maintain aspect of output frame
+  // Actually we need to fit the source image correctly — scale to output-frame size at maxScale
+  const srcW = Math.round(p.W * maxScale);
+  const srcH = Math.round(loadedImage.height * (srcW / loadedImage.width));
+  offscreen.width  = srcW;
+  offscreen.height = srcH;
+  const octx = offscreen.getContext('2d');
+  octx.imageSmoothingEnabled = true;
+  octx.imageSmoothingQuality = 'high';
+  octx.drawImage(loadedImage, 0, 0, srcW, srcH);
+
   return (ctx, frame, total, w, h) => {
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
     ctx.fillStyle = '#000';
     ctx.fillRect(0, 0, w, h);
     const t = total > 1 ? frame / (total - 1) : 0;
     const scale = p.zoomStartPct + (p.zoomEndPct - p.zoomStartPct) * t;
-    const drawW = w * scale;
-    const drawH = loadedImage.height * (drawW / loadedImage.width);
-    ctx.drawImage(loadedImage, (w - drawW) / 2, (h - drawH) / 2, drawW, drawH);
+    // Scale relative to maxScale pre-render — only a small range (e.g. 0.94–1.0x of offscreen)
+    const ratio = scale / maxScale;
+    const drawW = Math.round(srcW * ratio);
+    const drawH = Math.round(srcH * ratio);
+    const dx    = Math.round((w - drawW) / 2);
+    const dy    = Math.round((h - drawH) / 2);
+    ctx.drawImage(offscreen, dx, dy, drawW, drawH);
     drawFadeOverlay(ctx, frame, total, p.zoomFadeF, w, h);
   };
 }
@@ -892,7 +1000,7 @@ btnBoth.addEventListener('click', async () => {
 });
 
 // ─────────────────────────────────────────────
-//  Combine: re-render both sequences into one continuous recorder session
+//  Combine
 // ─────────────────────────────────────────────
 btnCombine.addEventListener('click', async () => {
   if (!panBlob || !zoomBlob) return;
@@ -902,60 +1010,32 @@ btnCombine.addEventListener('click', async () => {
   progressWrap.style.display = 'block';
   setProgress(0, 'Combining videos…');
 
-  const pp  = getPanParams();
-  const zp  = getZoomParams();
-  const W   = pp.W;
-  const H   = pp.H;
-  const fps = pp.fps;
-  const mime = getBestMime();
+  const pp = getPanParams();
+  const zp = getZoomParams();
+  const W = pp.W, H = pp.H, fps = pp.fps;
   const totalFrames = pp.panFrames + zp.zoomFrames;
-
   const panDraw  = makePanDrawFn(pp);
   const zoomDraw = makeZoomDrawFn(zp);
 
+  // Unified draw fn that switches at the pan/zoom boundary
+  function combinedDraw(ctx, frame, total, w, h) {
+    if (frame < pp.panFrames) panDraw(ctx, frame, pp.panFrames, w, h);
+    else zoomDraw(ctx, frame - pp.panFrames, zp.zoomFrames, w, h);
+  }
+
   try {
-    const canvas = document.createElement('canvas');
-    canvas.width = W; canvas.height = H;
-    const ctx = canvas.getContext('2d');
-    const stream = canvas.captureStream(fps);
-    const recOpts = { videoBitsPerSecond: 10_000_000 };
-    if (mime) recOpts.mimeType = mime;
-    const recorder = new MediaRecorder(stream, recOpts);
-    const chunks = [];
-    recorder.ondataavailable = e => { if (e.data?.size > 0) chunks.push(e.data); };
-
-    const combined = await new Promise((resolve, reject) => {
-      recorder.onstop = () => resolve(new Blob(chunks, { type: mime || 'video/webm' }));
-      recorder.onerror = e => reject(e.error);
-
-      // Draw first frame before starting so recorder never sees a blank canvas
-      panDraw(ctx, 0, pp.panFrames, W, H);
-      recorder.start(100);
-
-      let frame = 0;
-      const msPerFrame = 1000 / fps;
-
-      const interval = setInterval(() => {
-        if (frame >= totalFrames) {
-          clearInterval(interval);
-          setTimeout(() => recorder.stop(), msPerFrame * 3);
-          return;
-        }
-        if (frame < pp.panFrames) {
-          panDraw(ctx, frame, pp.panFrames, W, H);
-        } else {
-          const zFrame = frame - pp.panFrames;
-          zoomDraw(ctx, zFrame, zp.zoomFrames, W, H);
-        }
-        setProgress(frame / totalFrames, frame < pp.panFrames ? 'Combining — pan segment…' : 'Combining — zoom segment…');
-        frame++;
-      }, msPerFrame);
-    });
+    const blob = await renderVideo(W, H, fps, totalFrames, combinedDraw,
+      frac => setProgress(frac, frac < 0.5 ? 'Combining — pan…' : 'Combining — zoom…'));
 
     setProgress(1, 'Done ✓');
-    const mb = (combined.size / (1024 * 1024)).toFixed(1);
-    document.getElementById('combined-meta').textContent = `WebM · Pan + Zoom · ${mb} MB`;
-    document.getElementById('combined-download').href = URL.createObjectURL(combined);
+    const mb = (blob.size / (1024 * 1024)).toFixed(1);
+    document.getElementById('combined-meta').textContent = `${OUTPUT_LABEL} · Pan + Zoom · ${mb} MB`;
+    const dl = document.getElementById('combined-download');
+    dl.href = URL.createObjectURL(blob);
+    dl.download = `story_combined.${OUTPUT_EXT}`;
+    dl.textContent = `↓ ${OUTPUT_LABEL}`;
+    const mp4btn = document.getElementById('combined-output-row').querySelector('.mp4-btn');
+    if (mp4btn) mp4btn.style.display = hasWebCodecs ? 'none' : '';
     document.getElementById('combined-output-row').style.display = 'flex';
     outputsEl.style.display = 'block';
 
@@ -967,122 +1047,20 @@ btnCombine.addEventListener('click', async () => {
 });
 
 // ─────────────────────────────────────────────
-//  MP4 conversion via ffmpeg.wasm 0.12 (no SharedArrayBuffer needed)
+//  → MP4 buttons (WebM fallback browsers only)
+//  WebCodecs browsers already output MP4 — buttons are hidden via showOutputRow.
+//  On fallback browsers, show the ffmpeg command the user can run.
 // ─────────────────────────────────────────────
-let ffmpegReady = false;
-let ff = null;
-
-const CDN = 'https://cdn.jsdelivr.net/npm';
-
-function loadScript(src) {
-  return new Promise((resolve, reject) => {
-    if (document.querySelector(`script[src="${src}"]`)) { resolve(); return; }
-    const s = document.createElement('script');
-    s.src = src;
-    s.onload = resolve;
-    s.onerror = () => reject(new Error('Failed to load: ' + src));
-    document.head.appendChild(s);
-  });
-}
-
-async function loadFFmpeg() {
-  if (ffmpegReady) return ff;
-  progressWrap.style.display = 'block';
-  setProgress(0, 'Downloading FFmpeg (~30MB, first time only)…');
-
-  await loadScript(`${CDN}/@ffmpeg/ffmpeg@0.12.6/dist/umd/ffmpeg.js`);
-  await loadScript(`${CDN}/@ffmpeg/util@0.12.1/dist/umd/index.js`);
-
-  const { FFmpeg } = FFmpegWASM;
-  ff = new FFmpeg();
-
-  // Progress fires during conversion, not loading — show a fake ticker during load
-  let loadPct = 0;
-  const ticker = setInterval(() => {
-    loadPct = Math.min(0.92, loadPct + 0.008);
-    setProgress(loadPct, 'Loading FFmpeg engine…');
-  }, 300);
-
-  try {
-    await ff.load({
-      coreURL: `${CDN}/@ffmpeg/core@0.12.6/dist/umd/ffmpeg-core.js`,
-      wasmURL: `${CDN}/@ffmpeg/core@0.12.6/dist/umd/ffmpeg-core.wasm`,
-    });
-  } finally {
-    clearInterval(ticker);
-  }
-
-  // Wire conversion progress now that ff is loaded
-  ff.on('progress', ({ progress }) => {
-    setProgress(Math.min(0.98, progress), 'Converting to MP4…');
-  });
-
-  ffmpegReady = true;
-  setProgress(1, 'FFmpeg ready');
-  return ff;
-}
-
-async function convertToMp4(blob) {
-  const engine = await loadFFmpeg();
-  const { fetchFile } = FFmpegUtil;
-
-  setProgress(0, 'Preparing file…');
-  await engine.writeFile('input.webm', await fetchFile(blob));
-
-  await engine.exec([
-    '-i', 'input.webm',
-    '-c:v', 'libx264',
-    '-profile:v', 'high',
-    '-level', '4.0',
-    '-preset', 'fast',
-    '-crf', '18',
-    '-pix_fmt', 'yuv420p',
-    '-r', '30',
-    '-an',
-    '-movflags', '+faststart',
-    'output.mp4'
-  ]);
-
-  const data = await engine.readFile('output.mp4');
-  await engine.deleteFile('input.webm');
-  await engine.deleteFile('output.mp4');
-  return new Blob([data.buffer], { type: 'video/mp4' });
-}
-
-// Wire up MP4 convert buttons
-document.addEventListener('click', async e => {
+document.addEventListener('click', e => {
   const btn = e.target.closest('.mp4-btn');
-  if (!btn) return;
-  const which = btn.dataset.which;
-
-  let blob;
-  if (which === 'pan')       blob = panBlob;
-  else if (which === 'zoom') blob = zoomBlob;
-  else {
-    const href = document.getElementById('combined-download').href;
-    if (!href || href === window.location.href) return;
-    blob = await fetch(href).then(r => r.blob());
-  }
-  if (!blob) return;
-
-  btn.disabled = true;
-  btn.textContent = 'Converting…';
-  progressWrap.style.display = 'block';
-
-  try {
-    const mp4 = await convertToMp4(blob);
-    setProgress(1, 'Done ✓');
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(mp4);
-    a.download = `story_${which}.mp4`;
-    a.click();
-  } catch(err) {
-    setProgress(0, 'MP4 conversion failed: ' + err.message);
-    console.error(err);
-  }
-
-  btn.disabled = false;
-  btn.textContent = '→ MP4';
+  if (!btn || hasWebCodecs) return;
+  alert(
+    'Your browser does not support direct MP4 output.\n\n' +
+    'To convert the downloaded WebM file, run this command:\n\n' +
+    'ffmpeg -i input.webm -c:v libx264 -profile:v high -level 4.0 \\\n' +
+    '  -preset fast -crf 18 -pix_fmt yuv420p -r 30 -an \\\n' +
+    '  -movflags +faststart output.mp4'
+  );
 });
 
 // ─────────────────────────────────────────────
@@ -1090,14 +1068,17 @@ document.addEventListener('click', async e => {
 // ─────────────────────────────────────────────
 (function checkCompat() {
   const warn = document.getElementById('compat-warning');
+  if (hasWebCodecs) return; // best path — no warning needed
   const ua = navigator.userAgent;
-  // Safari on iOS doesn't support MediaRecorder well
   if (/iPhone|iPad/.test(ua) && /Safari/.test(ua) && !/Chrome/.test(ua)) {
     warn.style.display = 'block';
-  }
-  if (typeof MediaRecorder === 'undefined') {
+    warn.textContent = '⚠ Safari does not support direct MP4 output. Videos will download as WebM. Use Chrome on Android or desktop for MP4.';
+  } else if (typeof MediaRecorder === 'undefined') {
     warn.style.display = 'block';
     warn.textContent = '⚠ Your browser does not support video recording. Please use Chrome, Firefox, or Edge.';
+  } else {
+    warn.style.display = 'block';
+    warn.textContent = '⚠ Your browser does not support WebCodecs. Videos will download as WebM — use the → MP4 button for a conversion command.';
   }
 })();
 </script>
