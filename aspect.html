@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Aspect Ratio Drama</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300&family=Bebas+Neue&display=swap');
+  :root {
+    --bg:#0f0f0f; --surface:#181818; --border:#2a2a2a;
+    --accent:#c8ff00; --accent2:#ff6b35;
+    --text:#e8e8e8; --muted:#666; --danger:#ff4444;
+  }
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--text);font-family:'DM Mono',monospace;font-size:13px;min-height:100vh;padding:0 0 60px}
+  header{padding:32px 40px 24px;border-bottom:1px solid var(--border);display:flex;align-items:baseline;gap:20px}
+  header h1{font-family:'Bebas Neue',sans-serif;font-size:clamp(36px,5vw,64px);letter-spacing:2px;color:var(--accent);line-height:1}
+  header .sub{color:var(--muted);font-size:11px}
+  .venmo-link{margin-left:auto;color:var(--muted);font-size:11px;text-decoration:none;border:1px solid var(--border);padding:6px 12px;transition:color .2s,border-color .2s}
+  .venmo-link:hover{color:var(--accent);border-color:var(--accent)}
+  .app{display:grid;grid-template-columns:300px 1fr;min-height:calc(100vh - 97px)}
+  .sidebar{border-right:1px solid var(--border);padding:24px 20px;display:flex;flex-direction:column;gap:28px}
+  .section-label{font-size:10px;letter-spacing:2px;color:var(--muted);text-transform:uppercase;margin-bottom:10px}
+  .check-group{display:flex;flex-direction:column;gap:8px}
+  .check-row{display:flex;align-items:center;gap:10px;cursor:pointer;padding:8px 10px;border:1px solid var(--border);transition:border-color .15s,background .15s;user-select:none}
+  .check-row:hover{border-color:var(--accent);background:#1a1a1a}
+  .check-row input[type=checkbox]{display:none}
+  .check-box{width:16px;height:16px;border:1px solid var(--muted);flex-shrink:0;display:grid;place-items:center;transition:border-color .15s,background .15s}
+  .check-row input:checked~.check-box{background:var(--accent);border-color:var(--accent)}
+  .check-box::after{content:'';width:8px;height:5px;border-left:2px solid #000;border-bottom:2px solid #000;transform:rotate(-45deg) translateY(-1px);opacity:0;transition:opacity .1s}
+  .check-row input:checked~.check-box::after{opacity:1}
+  .check-label{font-size:12px;line-height:1.3}
+  .field{display:flex;flex-direction:column;gap:4px}
+  .field label{font-size:10px;color:var(--muted);letter-spacing:1px;text-transform:uppercase}
+  .field input{background:var(--surface);border:1px solid var(--border);color:var(--text);font-family:'DM Mono',monospace;font-size:13px;padding:7px 10px;width:100%;outline:none;transition:border-color .15s}
+  .field input:focus{border-color:var(--accent)}
+  .field-row{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .color-preview{display:flex;align-items:center;gap:8px}
+  .swatch{width:20px;height:20px;border:1px solid var(--border);flex-shrink:0}
+  .main{padding:24px 32px;display:flex;flex-direction:column;gap:20px}
+  .dropzone{border:2px dashed var(--border);padding:48px 32px;text-align:center;cursor:pointer;transition:border-color .2s,background .2s;position:relative}
+  .dropzone:hover,.dropzone.drag-over{border-color:var(--accent);background:#141a00}
+  .dropzone input{position:absolute;inset:0;opacity:0;cursor:pointer}
+  .dropzone-icon{font-size:40px;margin-bottom:12px;opacity:.4}
+  .dropzone h2{font-family:'Bebas Neue',sans-serif;font-size:24px;letter-spacing:1px;color:var(--muted);margin-bottom:6px}
+  .dropzone p{color:var(--muted);font-size:11px}
+  .file-list-wrap{border:1px solid var(--border);overflow:hidden}
+  .file-list-header{display:grid;grid-template-columns:1fr 80px 80px 24px;gap:8px;padding:8px 12px;background:var(--surface);font-size:10px;color:var(--muted);letter-spacing:1px;text-transform:uppercase;border-bottom:1px solid var(--border)}
+  .file-list{max-height:320px;overflow-y:auto}
+  .file-row{display:grid;grid-template-columns:1fr 80px 80px 24px;gap:8px;padding:8px 12px;border-bottom:1px solid #1a1a1a;align-items:center}
+  .file-row:hover{background:#141414}
+  .file-name{font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .file-dims{font-size:11px;color:var(--muted)}
+  .file-status{font-size:11px}
+  .status-queued{color:var(--muted)}.status-done{color:var(--accent)}.status-error{color:var(--danger)}.status-working{color:var(--accent2)}
+  .remove-btn{background:none;border:none;color:var(--muted);cursor:pointer;font-size:14px;line-height:1;padding:0;transition:color .15s}
+  .remove-btn:hover{color:var(--danger)}
+  .bottom-bar{position:sticky;bottom:0;background:var(--bg);border-top:1px solid var(--border);padding:14px 32px;display:flex;align-items:center;gap:16px}
+  .progress-wrap{flex:1}
+  .progress-track{height:3px;background:var(--border);overflow:hidden}
+  .progress-bar{height:100%;background:var(--accent);width:0%;transition:width .2s}
+  .progress-label{font-size:11px;color:var(--muted);margin-top:4px}
+  .btn{font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:1px;padding:10px 28px;border:none;cursor:pointer;transition:background .15s,opacity .15s}
+  .btn-primary{background:var(--accent);color:#000}
+  .btn-primary:hover{background:#d8ff33}
+  .btn-primary:disabled{opacity:.35;cursor:not-allowed}
+  .btn-secondary{background:var(--border);color:var(--text)}
+  .btn-secondary:hover{background:#333}
+  ::-webkit-scrollbar{width:4px}
+  ::-webkit-scrollbar-track{background:var(--bg)}
+  ::-webkit-scrollbar-thumb{background:var(--border)}
+  @media(max-width:700px){
+    .app{grid-template-columns:1fr}
+    .sidebar{border-right:none;border-bottom:1px solid var(--border)}
+    header{padding:20px;flex-wrap:wrap}
+    .main{padding:16px}
+    .bottom-bar{padding:12px 16px}
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Aspect Ratio Drama</h1>
+  <span class="sub">Instagram border &amp; ratio tool</span>
+  <a class="venmo-link" href="https://account.venmo.com/u/zeu-photo" target="_blank">🍺 buy me a beer</a>
+</header>
+
+<div class="app">
+  <aside class="sidebar">
+    <div>
+      <div class="section-label">Generate</div>
+      <div class="check-group">
+        <label class="check-row">
+          <input type="checkbox" id="run_resize" checked>
+          <span class="check-box"></span>
+          <span class="check-label">Resize to Aspect (borderless)</span>
+        </label>
+        <label class="check-row">
+          <input type="checkbox" id="run_borderresize" checked>
+          <span class="check-box"></span>
+          <span class="check-label">Resize to Aspect With Border</span>
+        </label>
+        <label class="check-row">
+          <input type="checkbox" id="run_borderize">
+          <span class="check-box"></span>
+          <span class="check-label">Add Border Only</span>
+        </label>
+      </div>
+    </div>
+
+    <div>
+      <div class="section-label">Aspect Ratio</div>
+      <div class="field-row">
+        <div class="field"><label>X</label><input type="number" id="aspectx" value="4" min="1" step="0.1"></div>
+        <div class="field"><label>Y</label><input type="number" id="aspecty" value="5" min="1" step="0.1"></div>
+      </div>
+    </div>
+
+    <div>
+      <div class="section-label">Border Width</div>
+      <div class="field">
+        <label>% of image width (try 1–10)</label>
+        <input type="number" id="bordersize" value="2" min="0.1" max="50" step="0.1">
+      </div>
+    </div>
+
+    <div>
+      <div class="section-label">Pad Color</div>
+      <div class="field">
+        <label>Aspect ratio background</label>
+        <div class="color-preview">
+          <div class="swatch" id="pad_swatch" style="background:#000"></div>
+          <input type="text" id="pad_color" value="black" placeholder="black, #fff, rgb(...)">
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <div class="section-label">Border Color</div>
+      <div class="field">
+        <label>Photo border color</label>
+        <div class="color-preview">
+          <div class="swatch" id="border_swatch" style="background:#fff"></div>
+          <input type="text" id="border_color" value="white" placeholder="white, #ccc, rgb(...)">
+        </div>
+      </div>
+    </div>
+
+    <div style="margin-top:auto;font-size:10px;color:var(--muted);line-height:1.6">
+      Accepts JPG, PNG, WEBP.<br>
+      All processing is local — nothing is uploaded anywhere.
+    </div>
+  </aside>
+
+  <main class="main">
+    <div class="dropzone" id="dropzone">
+      <input type="file" id="fileInput" multiple accept="image/jpeg,image/png,image/webp">
+      <div class="dropzone-icon">⬡</div>
+      <h2>Drop images here</h2>
+      <p>or click to browse — JPG, PNG, WEBP</p>
+    </div>
+
+    <div id="fileListWrap" class="file-list-wrap" style="display:none">
+      <div class="file-list-header">
+        <span>Filename</span><span>Size</span><span>Status</span><span></span>
+      </div>
+      <div class="file-list" id="fileList"></div>
+    </div>
+  </main>
+</div>
+
+<div class="bottom-bar">
+  <div class="progress-wrap">
+    <div class="progress-track"><div class="progress-bar" id="progressBar"></div></div>
+    <div class="progress-label" id="progressLabel">Ready</div>
+  </div>
+  <button class="btn btn-secondary" id="clearBtn" style="display:none" onclick="clearAll()">Clear</button>
+  <button class="btn btn-primary" id="generateBtn" disabled onclick="generate()">Generate + Download</button>
+</div>
+
+<script>
+let files = [];
+
+// Color swatch preview
+function setupSwatch(inputId, swatchId) {
+  const input = document.getElementById(inputId);
+  const swatch = document.getElementById(swatchId);
+  input.addEventListener('input', () => { swatch.style.background = input.value; });
+}
+setupSwatch('pad_color', 'pad_swatch');
+setupSwatch('border_color', 'border_swatch');
+
+// File input / drag-drop
+const dropzone = document.getElementById('dropzone');
+const fileInput = document.getElementById('fileInput');
+fileInput.addEventListener('change', e => addFiles(e.target.files));
+dropzone.addEventListener('dragover', e => { e.preventDefault(); dropzone.classList.add('drag-over'); });
+dropzone.addEventListener('dragleave', () => dropzone.classList.remove('drag-over'));
+dropzone.addEventListener('drop', e => { e.preventDefault(); dropzone.classList.remove('drag-over'); addFiles(e.dataTransfer.files); });
+
+async function addFiles(fileList) {
+  for (const file of fileList) {
+    if (!file.type.startsWith('image/')) continue;
+    if (files.find(f => f.name === file.name)) continue;
+    const dims = await getImageDims(file);
+    files.push({ file, name: file.name, width: dims.w, height: dims.h, status: 'queued' });
+    renderRow(files.length - 1);
+  }
+  updateUI();
+}
+
+function getImageDims(file) {
+  return new Promise(resolve => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => { resolve({ w: img.naturalWidth, h: img.naturalHeight }); URL.revokeObjectURL(url); };
+    img.src = url;
+  });
+}
+
+function renderRow(i) {
+  const list = document.getElementById('fileList');
+  let row = document.getElementById('row_' + i);
+  if (!row) { row = document.createElement('div'); row.className = 'file-row'; row.id = 'row_' + i; list.appendChild(row); }
+  const f = files[i];
+  const cls = { queued:'status-queued', working:'status-working', done:'status-done', error:'status-error' }[f.status] || '';
+  const lbl = { queued:'—', working:'processing…', done:'✓', error:'error' }[f.status] || '';
+  row.innerHTML = `
+    <span class="file-name" title="${f.name}">${f.name}</span>
+    <span class="file-dims">${f.width}×${f.height}</span>
+    <span class="file-status ${cls}">${lbl}</span>
+    <button class="remove-btn" onclick="removeFile(${i})">×</button>`;
+}
+
+function removeFile(i) { files.splice(i, 1); rebuildList(); updateUI(); }
+function rebuildList() { document.getElementById('fileList').innerHTML = ''; files.forEach((_, i) => renderRow(i)); }
+function clearAll() { files = []; rebuildList(); updateUI(); setProgress(0, 'Ready'); }
+function updateUI() {
+  const has = files.length > 0;
+  document.getElementById('fileListWrap').style.display = has ? '' : 'none';
+  document.getElementById('generateBtn').disabled = !has;
+  document.getElementById('clearBtn').style.display = has ? '' : 'none';
+}
+
+// Canvas helpers
+function loadImage(file) {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => { resolve(img); URL.revokeObjectURL(url); };
+    img.onerror = reject;
+    img.src = url;
+  });
+}
+
+function canvasToBlob(canvas, mime, quality) {
+  return new Promise(resolve => canvas.toBlob(resolve, mime, quality));
+}
+
+function addBorder(img, borderPx, borderColor) {
+  const w = img.naturalWidth || img.width;
+  const h = img.naturalHeight || img.height;
+  const c = document.createElement('canvas');
+  c.width = w + borderPx * 2;
+  c.height = h + borderPx * 2;
+  const ctx = c.getContext('2d');
+  ctx.fillStyle = borderColor;
+  ctx.fillRect(0, 0, c.width, c.height);
+  ctx.drawImage(img, borderPx, borderPx, w, h);
+  return c;
+}
+
+function padToAspect(source, aspectX, aspectY, padColor) {
+  const srcW = source.width || source.naturalWidth;
+  const srcH = source.height || source.naturalHeight;
+  const targetAspect = aspectX / aspectY;
+  const srcAspect = srcW / srcH;
+  let newW, newH;
+  if (srcAspect < targetAspect) { newH = srcH; newW = Math.round(srcH * targetAspect); }
+  else                          { newW = srcW; newH = Math.round(srcW / targetAspect); }
+  const c = document.createElement('canvas');
+  c.width = newW; c.height = newH;
+  const ctx = c.getContext('2d');
+  ctx.fillStyle = padColor;
+  ctx.fillRect(0, 0, newW, newH);
+  ctx.drawImage(source, Math.round((newW - srcW) / 2), Math.round((newH - srcH) / 2), srcW, srcH);
+  return c;
+}
+
+function getOutputType(filename) {
+  const ext = filename.split('.').pop().toLowerCase();
+  if (ext === 'png')  return { mime: 'image/png',  ext: 'png',  quality: undefined };
+  if (ext === 'webp') return { mime: 'image/webp', ext: 'webp', quality: 0.97 };
+  return { mime: 'image/jpeg', ext: 'jpg', quality: 0.97 };
+}
+
+function triggerDownload(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename; a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+// Main generate
+async function generate() {
+  const run_resize       = document.getElementById('run_resize').checked;
+  const run_borderresize = document.getElementById('run_borderresize').checked;
+  const run_borderize    = document.getElementById('run_borderize').checked;
+
+  if (!run_resize && !run_borderresize && !run_borderize) {
+    alert('Please check at least one output type.'); return;
+  }
+
+  const aspectX     = parseFloat(document.getElementById('aspectx').value)    || 4;
+  const aspectY     = parseFloat(document.getElementById('aspecty').value)    || 5;
+  const borderPct   = parseFloat(document.getElementById('bordersize').value) || 2;
+  const padColor    = document.getElementById('pad_color').value    || 'black';
+  const borderColor = document.getElementById('border_color').value || 'white';
+
+  // Count how many outputs we'll generate total
+  const checksEnabled = [run_resize, run_borderresize, run_borderize].filter(Boolean).length;
+  const totalOutputs  = checksEnabled * files.length;
+  const useZip        = totalOutputs > 1;
+
+  document.getElementById('generateBtn').disabled = true;
+  document.getElementById('clearBtn').style.display = 'none';
+
+  const zip = useZip ? new JSZip() : null;
+  let singleBlob = null, singleName = null;
+
+  for (let i = 0; i < files.length; i++) {
+    const f = files[i];
+    f.status = 'working';
+    renderRow(i);
+    setProgress(i / files.length, `Processing ${i + 1} / ${files.length} — ${f.name}`);
+
+    try {
+      const img = await loadImage(f.file);
+      const baseName = f.name.replace(/\.[^.]+$/, '');
+      const { mime, ext, quality } = getOutputType(f.name);
+      const borderPx = Math.round((borderPct / 100) * img.naturalWidth);
+
+      if (run_resize) {
+        const canvas = padToAspect(img, aspectX, aspectY, padColor);
+        const blob = await canvasToBlob(canvas, mime, quality);
+        const name = `resized_${baseName}.${ext}`;
+        if (useZip) zip.file(`resized/${name}`, blob);
+        else { singleBlob = blob; singleName = name; }
+      }
+
+      if (run_borderresize) {
+        const bordered = addBorder(img, borderPx, borderColor);
+        const canvas = padToAspect(bordered, aspectX, aspectY, padColor);
+        const blob = await canvasToBlob(canvas, mime, quality);
+        const name = `borderized_${baseName}.${ext}`;
+        if (useZip) zip.file(`border_resized/${name}`, blob);
+        else { singleBlob = blob; singleName = name; }
+      }
+
+      if (run_borderize) {
+        const canvas = addBorder(img, borderPx, borderColor);
+        const blob = await canvasToBlob(canvas, mime, quality);
+        const name = `border_${baseName}.${ext}`;
+        if (useZip) zip.file(`bordered/${name}`, blob);
+        else { singleBlob = blob; singleName = name; }
+      }
+
+      f.status = 'done';
+    } catch (e) {
+      console.error(e);
+      f.status = 'error';
+    }
+    renderRow(i);
+  }
+
+  if (useZip) {
+    setProgress(0.98, 'Generating ZIP…');
+    const zipBlob = await zip.generateAsync({ type: 'blob', compression: 'STORE' });
+    triggerDownload(zipBlob, 'aspect_ratio_drama.zip');
+  } else {
+    triggerDownload(singleBlob, singleName);
+  }
+
+  const total = files.length;
+  setProgress(1, `Done — ${total} image${total !== 1 ? 's' : ''} processed`);
+  document.getElementById('generateBtn').disabled = false;
+  document.getElementById('clearBtn').style.display = '';
+}
+
+function setProgress(frac, label) {
+  document.getElementById('progressBar').style.width = (frac * 100) + '%';
+  document.getElementById('progressLabel').textContent = label;
+}
+</script>
+</body>
+</html>
