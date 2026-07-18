@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Buy vs. rent — breakeven</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,600&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#EDEFEC;
+  --ink:#1B2422;
+  --slate:#5C6B69;
+  --pine:#2C5449;
+  --rust:#9E4A2F;
+  --gold:#B98A2C;
+  --rule:#C9CFC9;
+}
+body[data-theme="night"]{
+  --paper:#000000;--ink:#FFFFFF;--slate:#8E9AA6;
+  --pine:#00E5FF;--rust:#FF2BD1;--gold:#FF2BD1;--rule:#262A30;
+}
+*{box-sizing:border-box}
+body{
+  margin:0;background:var(--paper);color:var(--ink);
+  font-family:"IBM Plex Sans",sans-serif;font-size:15px;line-height:1.5;
+  padding:22px 20px 60px;
+}
+.wrap{max-width:880px;margin:0 auto}
+.eyebrow{
+  font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.14em;
+  text-transform:uppercase;color:var(--slate);margin:0 0 6px;
+}
+.presets{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 14px}
+.themes{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 26px;align-items:center}
+.themes b{
+  font-family:"IBM Plex Mono",monospace;font-size:10px;letter-spacing:.14em;
+  text-transform:uppercase;color:var(--slate);font-weight:400;margin-right:4px;
+}
+.theme{
+  font-family:"IBM Plex Mono",monospace;font-size:10px;letter-spacing:.1em;
+  text-transform:uppercase;background:none;color:var(--slate);
+  border:1px solid var(--rule);padding:5px 10px;cursor:pointer;
+}
+.theme:hover{color:var(--ink);border-color:var(--ink)}
+.theme[aria-pressed="true"]{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+.theme:focus-visible{outline:2px solid var(--pine);outline-offset:2px}
+.preset{
+  font-family:"IBM Plex Sans",sans-serif;font-size:13px;
+  background:none;color:var(--slate);border:1px solid var(--rule);
+  padding:9px 15px;cursor:pointer;text-align:left;
+}
+.preset:hover{border-color:var(--ink);color:var(--ink)}
+.preset[aria-pressed="true"]{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+.preset:focus-visible{outline:2px solid var(--pine);outline-offset:2px}
+.preset small{
+  display:block;font-family:"IBM Plex Mono",monospace;font-size:10px;
+  letter-spacing:.1em;text-transform:uppercase;opacity:.7;margin-top:2px;
+}
+
+.chart-block{margin:0 0 34px}
+svg.chart{width:100%;height:auto;display:block;overflow:visible}
+.grid{stroke:var(--rule);stroke-width:1}
+.zeroline{stroke:var(--ink);stroke-width:1}
+.axis{fill:var(--slate);font-family:"IBM Plex Mono",monospace;font-size:11px}
+.series{fill:none;stroke-width:2.5;stroke-linejoin:round;stroke-linecap:round}
+.cross{stroke:var(--ink);stroke-width:1;stroke-dasharray:3 3}
+.crosslabel{font-family:"IBM Plex Mono",monospace;font-size:11px}
+.legend{display:flex;flex-wrap:wrap;gap:18px;margin:12px 0 0;font-size:13px;color:var(--slate)}
+.legend span{display:flex;align-items:center;gap:7px}
+.swatch{width:16px;height:3px;border-radius:2px;display:inline-block}
+.headline{
+  font-family:"Fraunces",serif;font-size:clamp(22px,4.6vw,32px);font-weight:600;margin:0 0 2px;
+}
+.headline.alt{font-size:clamp(17px,3.4vw,23px);font-weight:300;margin:2px 0 0}
+.headline .unit{font-family:"IBM Plex Sans",sans-serif;font-weight:400;font-size:15px;color:var(--slate)}
+
+.controls{
+  display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));
+  gap:20px 30px;padding:24px 0;border-top:1px solid var(--rule);
+}
+.fhead{
+  display:flex;justify-content:space-between;align-items:baseline;gap:8px;
+  font-size:13px;color:var(--slate);margin-bottom:5px;
+}
+.fhead b{font-family:"IBM Plex Mono",monospace;font-weight:500;font-size:14px;color:var(--ink)}
+button.help{
+  font-family:"IBM Plex Mono",monospace;font-size:10px;line-height:1;
+  width:16px;height:16px;padding:0;margin-left:6px;vertical-align:1px;
+  border:1px solid var(--rule);border-radius:50%;
+  background:none;color:var(--slate);cursor:pointer;
+}
+button.help:hover,button.help[aria-expanded="true"]{
+  background:var(--ink);color:var(--paper);border-color:var(--ink);
+}
+button.help:focus-visible{outline:2px solid var(--pine);outline-offset:2px}
+.tip{
+  margin:9px 0 0;font-size:12px;line-height:1.45;color:var(--slate);
+  border-left:2px solid var(--rule);padding-left:10px;
+}
+.tip[hidden]{display:none}
+input[type=range]{width:100%;accent-color:var(--pine);height:20px}
+input[type=range]:focus-visible{outline:2px solid var(--pine);outline-offset:3px}
+
+.reset-row{display:flex;justify-content:flex-end;padding-bottom:20px}
+button.reset{
+  font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.12em;
+  text-transform:uppercase;background:none;color:var(--slate);
+  border:1px solid var(--rule);padding:7px 14px;cursor:pointer;
+}
+button.reset:hover{color:var(--paper);background:var(--ink);border-color:var(--ink)}
+button.reset:focus-visible{outline:2px solid var(--pine);outline-offset:2px}
+button.reset[disabled]{opacity:.4;cursor:default}
+button.reset[disabled]:hover{color:var(--slate);background:none;border-color:var(--rule)}
+
+table{width:100%;border-collapse:collapse;margin-top:8px;
+  font-family:"IBM Plex Mono",monospace;font-size:13px}
+th{
+  cursor:help;
+  font-family:"IBM Plex Sans",sans-serif;font-weight:500;font-size:12px;
+  color:var(--slate);text-align:right;padding:0 0 8px;border-bottom:1px solid var(--ink);
+}
+th:first-child,td:first-child{text-align:left}
+td{text-align:right;padding:7px 0;border-bottom:1px solid var(--rule)}
+.pos{color:var(--pine)}
+.neg{color:var(--rust)}
+.foot{margin-top:26px;font-size:13px;color:var(--slate);max-width:64ch}
+@media (max-aspect-ratio:1/1){.col-val{display:none}}
+@media (max-width:560px){
+  table{font-size:11px}
+  th{font-size:10px}
+  td{padding:6px 0}
+}
+@media (prefers-reduced-motion:no-preference){
+  .series{transition:d .2s ease}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="presets" id="presets"></div>
+  <div class="themes" id="themes"><b>Palette</b></div>
+
+  <div class="chart-block">
+    <p class="headline" id="head"></p>
+    <p class="headline alt" id="head2"></p>
+    <p class="eyebrow" id="subhead"></p>
+    <svg class="chart" id="chart" viewBox="0 0 760 330" role="img" aria-label="Net if sold and investment gain over fifteen years"></svg>
+    <p class="legend">
+      <span><i class="swatch" style="background:var(--pine)"></i>Net if sold</span>
+      <span><i class="swatch" style="background:var(--gold)"></i>Investment gain</span>
+    </p>
+  </div>
+
+  <div class="controls" id="controls"></div>
+  <div class="reset-row"><button class="reset" id="reset" type="button">Reset to preset</button></div>
+
+  <table>
+    <thead><tr><th title="Years since closing.">Year</th><th class="col-val" title="What the property is worth, after compounding the appreciation rate. Hidden on portrait screens.">Home value</th><th title="Total rent you would have paid by this point had you not bought.">Equivalent rent</th><th title="Every dollar out of pocket so far: down payment, closing costs, principal, interest, taxes, insurance, HOA and other costs, less any rent collected.">Paid in</th><th title="Home value minus remaining mortgage balance. Before selling costs.">Equity</th><th title="Where you would stand if you sold this year: equity, minus selling costs, plus the rent you avoided, minus everything paid in.">Net if sold</th><th title="Growth only (not principal) on the down payment and closing costs had they gone into the market. Green while the market is ahead, red once the house has passed it.">Investment gain</th><th class="col-val" title="Net if sold minus Investment gain. Positive means buying beat investing the same cash. Hidden on portrait screens.">House vs. market</th></tr></thead>
+    <tbody id="tbody"></tbody>
+  </table>
+
+  <p class="foot"><b>Paid in</b> is the down payment, closing costs, and every mortgage, tax, insurance, HOA and other-cost payment, less any rent revenue collected. <b>Net if sold</b> = equity − selling costs + rent you didn't pay − paid in. <b>Investment gain</b> is what the down payment plus closing costs would have earned in the market instead — the growth only, not the principal, so it's directly comparable to Net if sold. It reads green in years the market is ahead of the house and red once the house has passed it. <b>House vs. market</b> is Net if sold minus Investment gain — positive means buying came out ahead of putting the same cash in the market. <b>Other costs</b> covers maintenance, vacancy and turnover on a rental, or interior repairs and a reserve against special assessments on a condo. Taxes, insurance, HOA and other costs rise with escrow inflation; rent revenue rises with rent inflation. Excludes maintenance, vacancy, income tax on rent, and mortgage interest deduction.</p>
+</div>
+
+<script>
+const PRESETS={
+  condo:{
+    name:"Singing Hills Condo", note:"290k · Boulder",
+    price:290000,down:95000,rate:6.5,hoa:541,tax:217,ins:131,closing:7500,other:175,
+    app:3,rent:2000,rentrev:0,rentinf:3,escinf:3,sell:7,ret:8
+  },
+  collyer:{
+    name:"Collyer St Duplex", note:"550k · 2051-2053 Collyer",
+    price:550000,down:100000,rate:6.5,hoa:0,tax:268,ins:210,closing:11000,other:625,
+    app:3,rent:1700,rentrev:1600,rentinf:3,escinf:3,sell:7,ret:8
+  },
+  duplex:{
+    name:"Lashley St Duplex", note:"475k · 472-474 Lashley",
+    price:475000,down:100000,rate:6.5,hoa:0,tax:257,ins:225,closing:10000,other:550,
+    app:3,rent:1700,rentrev:1600,rentinf:3,escinf:3,sell:7,ret:8
+  }
+};
+const C=[
+ {k:"price",help:"What you pay for the property. Drives appreciation, selling costs and the loan size.",label:"Purchase price",min:200000,max:700000,step:5000,fmt:v=>"$"+v.toLocaleString()},
+ {k:"down",help:"Cash you put in up front. Everything above 20% of the price avoids mortgage insurance; this money is also what the Stock market growth slider invests instead.",label:"Down payment",min:20000,max:250000,step:5000,fmt:v=>"$"+v.toLocaleString()},
+ {k:"rate",help:"Annual mortgage interest rate, fixed for 30 years. Only affects the principal and interest portion of the payment.",label:"Interest rate",min:4,max:9,step:.125,fmt:v=>v.toFixed(3)+"%"},
+ {k:"hoa",help:"Monthly association dues. Buys no equity, and rises with the escrow inflation slider.",label:"HOA dues",min:0,max:900,step:10,fmt:v=>"$"+v+"/mo"},
+ {k:"tax",help:"Monthly property tax, i.e. the annual county bill divided by twelve.",label:"Property taxes",min:0,max:800,step:5,fmt:v=>"$"+v+"/mo"},
+ {k:"ins",help:"Monthly homeowner's or landlord policy premium. Landlord coverage on a rented unit costs more than an owner-occupied policy.",label:"Insurance",min:0,max:500,step:5,fmt:v=>"$"+v+"/mo"},
+ {k:"closing",help:"One-time lender fees, title, escrow and prepaid escrow due at closing. Set to zero if the seller covers them as a concession.",label:"Closing costs",min:0,max:20000,step:250,fmt:v=>"$"+v.toLocaleString()},
+ {k:"other",help:"Maintenance, vacancy and turnover on a rental, or interior repairs and a reserve against special assessments on a condo. The line most often left out and most often underestimated.",label:"Other costs",min:0,max:1200,step:25,fmt:v=>"$"+v+"/mo"},
+ {k:"rent",help:"What it would cost you to rent somewhere equivalent. This is the alternative you are measured against, so it should reflect where you would actually live.",label:"Equivalent rent",min:800,max:3500,step:50,fmt:v=>"$"+v.toLocaleString()+"/mo"},
+ {k:"rentrev",help:"Rent collected from a tenant. Subtracted from Paid in, since it offsets money leaving your pocket.",label:"Rent revenue",min:0,max:3500,step:50,fmt:v=>"$"+v.toLocaleString()+"/mo"},
+ {k:"app",help:"How fast the property gains value each year. The single most influential slider, and the least knowable.",label:"Appreciation",min:-2,max:8,step:.25,fmt:v=>v.toFixed(2)+"%/yr"},
+ {k:"rentinf",help:"Annual increase in both the rent you would have paid and the rent you collect.",label:"Rent inflation",min:0,max:8,step:.25,fmt:v=>v.toFixed(2)+"%/yr"},
+ {k:"escinf",help:"Annual increase in taxes, insurance, HOA dues and other costs.",label:"Escrow + HOA inflation",min:0,max:8,step:.25,fmt:v=>v.toFixed(2)+"%/yr"},
+ {k:"sell",help:"Agent commissions, title and transfer costs when you sell, as a percentage of the sale price. Deducted from Net if sold.",label:"Cost to sell",min:0,max:10,step:.5,fmt:v=>v.toFixed(1)+"%"},
+ {k:"ret",help:"Annual return if the down payment and closing costs went into the market instead. Roughly 10% nominal for the long-run S&P before tax, less after.",label:"Stock market growth",min:0,max:12,step:.25,fmt:v=>v.toFixed(2)+"%/yr"}
+];
+const MONTHS=180;
+let active="condo";
+const S={};
+
+const presets=document.getElementById("presets");
+Object.entries(PRESETS).forEach(([id,p])=>{
+  const b=document.createElement("button");
+  b.className="preset";b.type="button";b.dataset.id=id;
+  b.innerHTML=`${p.name}<small>${p.note}</small>`;
+  b.addEventListener("click",()=>load(id));
+  presets.appendChild(b);
+});
+
+const THEMES=[["night","Night"],["","Professional"]];
+const themes=document.getElementById("themes");
+THEMES.forEach(([id,label])=>{
+  const b=document.createElement("button");
+  b.className="theme";b.type="button";b.textContent=label;b.dataset.theme=id;
+  b.setAttribute("aria-pressed",id==="night");
+  b.addEventListener("click",()=>{
+    document.body.dataset.theme=id;
+    document.querySelectorAll(".theme").forEach(t=>
+      t.setAttribute("aria-pressed",t.dataset.theme===id));
+  });
+  themes.appendChild(b);
+});
+
+const controls=document.getElementById("controls");
+C.forEach(c=>{
+  const d=document.createElement("div");d.className="field";
+  d.innerHTML=`<div class="fhead">
+      <span><label for="${c.k}">${c.label}</label><button class="help" type="button"
+        aria-expanded="false" aria-controls="tip_${c.k}" aria-label="What is ${c.label}?">?</button></span>
+      <b id="v_${c.k}"></b>
+    </div>
+    <input type="range" id="${c.k}" min="${c.min}" max="${c.max}" step="${c.step}">
+    <p class="tip" id="tip_${c.k}" hidden>${c.help}</p>`;
+  controls.appendChild(d);
+  d.querySelector("input").addEventListener("input",e=>{S[c.k]=+e.target.value;render();});
+  const btn=d.querySelector("button.help"), tip=d.querySelector(".tip");
+  btn.addEventListener("click",()=>{
+    const open=btn.getAttribute("aria-expanded")==="true";
+    btn.setAttribute("aria-expanded",!open);
+    tip.hidden=open;
+  });
+});
+
+document.getElementById("reset").addEventListener("click",()=>load(active));
+
+function load(id){
+  active=id;
+  C.forEach(c=>{S[c.k]=PRESETS[id][c.k];document.getElementById(c.k).value=PRESETS[id][c.k];});
+  document.querySelectorAll(".preset").forEach(b=>
+    b.setAttribute("aria-pressed",b.dataset.id===id));
+  render();
+}
+
+function model(){
+  const loan=Math.max(S.price-S.down,0);
+  const r=S.rate/100/12;
+  const pmt=r>0?loan*r/(1-Math.pow(1+r,-360)):loan/360;
+  let bal=loan, paid=S.down+S.closing, rent=0;
+  const rows=[];
+  for(let m=1;m<=MONTHS;m++){
+    const y=Math.floor((m-1)/12);
+    const esc=(S.hoa+S.tax+S.ins+S.other)*Math.pow(1+S.escinf/100,y);
+    const rev=S.rentrev*Math.pow(1+S.rentinf/100,y);
+    const int=bal*r;
+    bal=Math.max(bal-(pmt-int),0);
+    paid+=pmt+esc-rev;
+    rent+=S.rent*Math.pow(1+S.rentinf/100,y);
+    const val=S.price*Math.pow(1+S.app/100,m/12);
+    const eq=val-bal;
+    const gain=(S.down+S.closing)*(Math.pow(1+S.ret/100/12,m)-1);
+    rows.push({m,val,eq,paid,rent,gain,net:eq-val*S.sell/100+rent-paid});
+  }
+  return {rows,pmt};
+}
+function axisLabel(v){
+  const a=Math.abs(v), sign=v<0?"−":"";
+  if(a>=1000) return sign+"$"+(a/1000).toFixed(a<10000?1:0).replace(/\.0$/,"")+"k";
+  return sign+"$"+Math.round(a);
+}
+function niceStep(range){
+  const raw=range/5, mag=Math.pow(10,Math.floor(Math.log10(raw))), n=raw/mag;
+  return (n<=1?1:n<=2?2:n<=2.5?2.5:n<=5?5:10)*mag;
+}
+function drawChart(rows,be){
+  const W=760,H=330,L=64,R=14,T=14,B=30;
+  const pw=W-L-R, ph=H-T-B;
+  const vals=rows.flatMap(r=>[r.net,r.gain]).concat([0]);
+  let lo=Math.min(...vals), hi=Math.max(...vals);
+  const step=niceStep(hi-lo||1);
+  lo=Math.floor(lo/step)*step; hi=Math.ceil(hi/step)*step;
+  const x=m=>L+(m-1)/(MONTHS-1)*pw;
+  const y=v=>T+(hi-v)/(hi-lo)*ph;
+  const path=key=>"M"+rows.map(r=>x(r.m).toFixed(1)+","+y(r[key]).toFixed(1)).join("L");
+
+  let g="";
+  for(let v=lo;v<=hi+1e-6;v+=step){
+    const yy=y(v).toFixed(1);
+    g+=`<line class="${Math.abs(v)<1e-6?"zeroline":"grid"}" x1="${L}" x2="${W-R}" y1="${yy}" y2="${yy}"/>`;
+    g+=`<text class="axis" x="${L-9}" y="${+yy+4}" text-anchor="end">${axisLabel(v)}</text>`;
+  }
+  for(let yr=0;yr<=15;yr+=5){
+    const m=Math.max(yr*12,1), xx=x(m).toFixed(1);
+    g+=`<text class="axis" x="${xx}" y="${H-B+20}" text-anchor="${yr===0?"start":yr===15?"end":"middle"}">Year ${yr||1}</text>`;
+  }
+  const mark=(r,val,color,text,ypos)=>{
+    const xx=x(r.m).toFixed(1);
+    const anchor = r.m>MONTHS*0.72 ? "end" : "start";
+    g+=`<line class="cross" x1="${xx}" x2="${xx}" y1="${T}" y2="${T+ph}" stroke="${color}"/>`;
+    g+=`<circle cx="${xx}" cy="${y(val).toFixed(1)}" r="3.5" fill="${color}"/>`;
+    g+=`<text class="crosslabel" x="${+xx+(anchor==="end"?-6:6)}" y="${ypos}" text-anchor="${anchor}" fill="${color}">${text}</text>`;
+  };
+  if(be) mark(be,be.net,"var(--pine)","Breakeven · month "+be.m,T+12);
+  const beat=rows.find(r=>r.net>r.gain);
+  if(beat) mark(beat,beat.gain,"var(--gold)","Passes the market · month "+beat.m,T+ph-8);
+  g+=`<path class="series" d="${path("gain")}" stroke="var(--gold)"/>`;
+  g+=`<path class="series" d="${path("net")}" stroke="var(--pine)"/>`;
+  document.getElementById("chart").innerHTML=g;
+}
+function money(n){
+  return (n<0?"−$":"$")+Math.abs(Math.round(n)).toLocaleString();
+}
+function render(){
+  C.forEach(c=>document.getElementById("v_"+c.k).textContent=c.fmt(S[c.k]));
+  document.getElementById("reset").disabled=C.every(c=>S[c.k]===PRESETS[active][c.k]);
+  const {rows,pmt}=model();
+  const be=rows.find(r=>r.net>0);
+  document.getElementById("head").innerHTML = be
+    ? `Month ${be.m} <span class="unit">— ${(be.m/12).toFixed(1)} years to break even</span>`
+    : `No breakeven <span class="unit">— still behind at year 15</span>`;
+  const xo=rows.find(r=>r.net>r.gain);
+  const h2=document.getElementById("head2");
+  h2.style.color = xo ? "var(--pine)" : "var(--rust)";
+  h2.innerHTML = xo
+    ? `Month ${xo.m} <span class="unit">— ${(xo.m/12).toFixed(1)} years to beat the market</span>`
+    : `Never beats the market inside 15 years`;
+
+  const out=pmt+S.hoa+S.tax+S.ins+S.other;
+  document.getElementById("subhead").textContent=
+    `Payment ${money(out)}/mo` + (S.rentrev>0?` · ${money(out-S.rentrev)} after rent`:"") +
+    ` · loan ${money(S.price-S.down)} · net at year 10 ${money(rows[119].net)}`;
+
+  drawChart(rows,be);
+
+  const tb=document.getElementById("tbody");tb.innerHTML="";
+  [1,2,3,5,7,10,15].forEach(y=>{
+    const r=rows[y*12-1];if(!r)return;
+    tb.insertAdjacentHTML("beforeend",
+      `<tr><td>${y}</td><td class="col-val">${money(r.val)}</td><td>${money(r.rent)}</td>
+       <td>${money(r.paid)}</td><td>${money(r.eq)}</td>
+       <td class="${r.net>=0?"pos":"neg"}">${money(r.net)}</td>
+       <td class="${r.gain>r.net?"pos":"neg"}">${money(r.gain)}</td>
+       <td class="col-val ${r.net-r.gain>=0?"pos":"neg"}">${money(r.net-r.gain)}</td></tr>`);
+  });
+}
+document.body.dataset.theme="night";
+load("condo");
+</script>
+</body>
+</html>
