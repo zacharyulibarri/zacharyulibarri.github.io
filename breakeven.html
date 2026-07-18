@@ -158,7 +158,7 @@ const PRESETS={
   condo:{
     name:"Singing Hills Condo", note:"290k · Boulder",
     price:290000,down:95000,rate:6.5,hoa:541,tax:217,ins:131,closing:7500,other:175,
-    app:3,rent:2000,rentrev:0,rentinf:3,escinf:3,sell:7,ret:8
+    app:3,rent:1700,rentrev:0,rentinf:3,escinf:3,sell:7,ret:8
   },
   collyer:{
     name:"Collyer St Duplex", note:"550k · 2051-2053 Collyer",
@@ -172,21 +172,21 @@ const PRESETS={
   }
 };
 const C=[
- {k:"price",help:"What you pay for the property. Drives appreciation, selling costs and the loan size.",label:"Purchase price",min:200000,max:700000,step:5000,fmt:v=>"$"+v.toLocaleString()},
- {k:"down",help:"Cash you put in up front. Everything above 20% of the price avoids mortgage insurance; this money is also what the Stock market growth slider invests instead.",label:"Down payment",min:20000,max:250000,step:5000,fmt:v=>"$"+v.toLocaleString()},
- {k:"rate",help:"Annual mortgage interest rate, fixed for 30 years. Only affects the principal and interest portion of the payment.",label:"Interest rate",min:4,max:9,step:.125,fmt:v=>v.toFixed(3)+"%"},
- {k:"hoa",help:"Monthly association dues. Buys no equity, and rises with the escrow inflation slider.",label:"HOA dues",min:0,max:900,step:10,fmt:v=>"$"+v+"/mo"},
- {k:"tax",help:"Monthly property tax, i.e. the annual county bill divided by twelve.",label:"Property taxes",min:0,max:800,step:5,fmt:v=>"$"+v+"/mo"},
- {k:"ins",help:"Monthly homeowner's or landlord policy premium. Landlord coverage on a rented unit costs more than an owner-occupied policy.",label:"Insurance",min:0,max:500,step:5,fmt:v=>"$"+v+"/mo"},
- {k:"closing",help:"One-time lender fees, title, escrow and prepaid escrow due at closing. Set to zero if the seller covers them as a concession.",label:"Closing costs",min:0,max:20000,step:250,fmt:v=>"$"+v.toLocaleString()},
+ {k:"price",help:"Drives appreciation, selling costs and the loan size.",label:"Purchase price",min:200000,max:700000,step:5000,fmt:v=>"$"+v.toLocaleString()},
+ {k:"down",help:"Above 20% avoids mortgage insurance. Also the sum invested instead under Stock market growth.",label:"Down payment",min:20000,max:250000,step:5000,fmt:v=>"$"+v.toLocaleString()},
+ {k:"rate",help:"Fixed for 30 years. Affects principal and interest only.",label:"Interest rate",min:4,max:9,step:.125,fmt:v=>v.toFixed(3)+"%"},
+ {k:"hoa",help:"Buys no equity. Rises with escrow inflation.",label:"HOA dues",min:0,max:900,step:10,fmt:v=>"$"+v+"/mo"},
+ {k:"tax",help:"Annual county bill divided by twelve.",label:"Property taxes",min:0,max:800,step:5,fmt:v=>"$"+v+"/mo"},
+ {k:"ins",help:"Landlord coverage on a rented unit costs more than an owner-occupied policy.",label:"Insurance",min:0,max:500,step:5,fmt:v=>"$"+v+"/mo"},
+ {k:"closing",help:"Lender fees, title, escrow and prepaids. Zero if the seller concedes them.",label:"Closing costs",min:0,max:20000,step:250,fmt:v=>"$"+v.toLocaleString()},
  {k:"other",help:"Maintenance, vacancy and turnover on a rental, or interior repairs and a reserve against special assessments on a condo.",label:"Other costs",min:0,max:1200,step:25,fmt:v=>"$"+v+"/mo"},
- {k:"rent",help:"What it would cost you to rent somewhere equivalent. This is the alternative you are measured against, so it should reflect where you would actually live.",label:"Equivalent rent",min:800,max:3500,step:50,fmt:v=>"$"+v.toLocaleString()+"/mo"},
- {k:"rentrev",help:"Rent collected from a tenant. Subtracted from Paid in, since it offsets money leaving your pocket.",label:"Rent revenue",min:0,max:3500,step:50,fmt:v=>"$"+v.toLocaleString()+"/mo"},
- {k:"app",help:"How fast the property gains value each year. The single most influential slider, and the least knowable.",label:"Appreciation",min:-2,max:8,step:.25,fmt:v=>v.toFixed(2)+"%/yr"},
- {k:"rentinf",help:"Annual increase in both the rent you would have paid and the rent you collect.",label:"Rent inflation",min:0,max:8,step:.25,fmt:v=>v.toFixed(2)+"%/yr"},
- {k:"escinf",help:"Annual increase in taxes, insurance, HOA dues and other costs.",label:"Escrow + HOA inflation",min:0,max:8,step:.25,fmt:v=>v.toFixed(2)+"%/yr"},
- {k:"sell",help:"Agent commissions, title and transfer costs when you sell, as a percentage of the sale price. Deducted from Net if sold.",label:"Cost to sell",min:0,max:10,step:.5,fmt:v=>v.toFixed(1)+"%"},
- {k:"ret",help:"Annual return if the down payment and closing costs went into the market instead. Roughly 10% nominal for the long-run S&P before tax, less after.",label:"Stock market growth",min:0,max:12,step:.25,fmt:v=>v.toFixed(2)+"%/yr"}
+ {k:"rent",help:"The alternative you are measured against. Set it to where you would actually live.",label:"Equivalent rent",min:800,max:3500,step:50,fmt:v=>"$"+v.toLocaleString()+"/mo"},
+ {k:"rentrev",help:"Rent collected from a tenant. Subtracted from Paid in.",label:"Rent revenue",min:0,max:3500,step:50,fmt:v=>"$"+v.toLocaleString()+"/mo"},
+ {k:"app",help:"How fast the property gains value each year.",label:"Appreciation",min:-2,max:8,step:.25,fmt:v=>v.toFixed(2)+"%/yr"},
+ {k:"rentinf",help:"Applies to both the rent you would pay and the rent you collect.",label:"Rent inflation",min:0,max:8,step:.25,fmt:v=>v.toFixed(2)+"%/yr"},
+ {k:"escinf",help:"Applies to taxes, insurance, HOA dues and other costs.",label:"Escrow + HOA inflation",min:0,max:8,step:.25,fmt:v=>v.toFixed(2)+"%/yr"},
+ {k:"sell",help:"Commissions, title and transfer, as a share of sale price. Deducted from Net if sold.",label:"Cost to sell",min:0,max:10,step:.5,fmt:v=>v.toFixed(1)+"%"},
+ {k:"ret",help:"Return if the down payment and closing costs went to the market instead. Long-run S&P is roughly 10% nominal before tax.",label:"Stock market growth",min:0,max:12,step:.25,fmt:v=>v.toFixed(2)+"%/yr"}
 ];
 const MONTHS=180;
 let active="condo";
