@@ -85,21 +85,11 @@ svg.chart{width:100%;height:auto;display:block;overflow:visible}
   font-size:13px;color:var(--slate);margin-bottom:5px;
 }
 .fhead b{font-family:"IBM Plex Mono",monospace;font-weight:500;font-size:14px;color:var(--ink)}
-button.help{
-  font-family:"IBM Plex Mono",monospace;font-size:10px;line-height:1;
-  width:16px;height:16px;padding:0;margin-left:6px;vertical-align:1px;
-  border:1px solid var(--rule);border-radius:50%;
-  background:none;color:var(--slate);cursor:pointer;
-}
-button.help:hover,button.help[aria-expanded="true"]{
-  background:var(--ink);color:var(--paper);border-color:var(--ink);
-}
-button.help:focus-visible{outline:2px solid var(--pine);outline-offset:2px}
 .tip{
   margin:9px 0 0;font-size:12px;line-height:1.45;color:var(--slate);
   border-left:2px solid var(--rule);padding-left:10px;
 }
-.tip[hidden]{display:none}
+
 input[type=range]{width:100%;accent-color:var(--pine);height:20px}
 input[type=range]:focus-visible{outline:2px solid var(--pine);outline-offset:3px}
 
@@ -117,7 +107,6 @@ button.reset[disabled]:hover{color:var(--slate);background:none;border-color:var
 table{width:100%;border-collapse:collapse;margin-top:8px;
   font-family:"IBM Plex Mono",monospace;font-size:13px}
 th{
-  cursor:help;
   font-family:"IBM Plex Sans",sans-serif;font-weight:500;font-size:12px;
   color:var(--slate);text-align:right;padding:0 0 8px;border-bottom:1px solid var(--ink);
 }
@@ -157,11 +146,11 @@ td{text-align:right;padding:7px 0;border-bottom:1px solid var(--rule)}
   <div class="reset-row"><button class="reset" id="reset" type="button">Reset to preset</button></div>
 
   <table>
-    <thead><tr><th title="Years since closing.">Year</th><th class="col-val" title="What the property is worth, after compounding the appreciation rate. Hidden on portrait screens.">Home value</th><th title="Total rent you would have paid by this point had you not bought.">Equivalent rent</th><th title="Every dollar out of pocket so far: down payment, closing costs, principal, interest, taxes, insurance, HOA and other costs, less any rent collected.">Paid in</th><th title="Home value minus remaining mortgage balance. Before selling costs.">Equity</th><th title="Where you would stand if you sold this year: equity, minus selling costs, plus the rent you avoided, minus everything paid in.">Net if sold</th><th title="Growth only (not principal) on the down payment and closing costs had they gone into the market. Green while the market is ahead, red once the house has passed it.">Investment gain</th><th class="col-val" title="Net if sold minus Investment gain. Positive means buying beat investing the same cash. Hidden on portrait screens.">House vs. market</th></tr></thead>
+    <thead><tr><th>Year</th><th class="col-val">Home value</th><th>Equivalent rent</th><th>Paid in</th><th>Equity</th><th>Net if sold</th><th>Investment gain</th><th class="col-val">House vs. market</th></tr></thead>
     <tbody id="tbody"></tbody>
   </table>
 
-  <p class="foot"><b>Paid in</b> is the down payment, closing costs, and every mortgage, tax, insurance, HOA and other-cost payment, less any rent revenue collected. <b>Net if sold</b> = equity − selling costs + rent you didn't pay − paid in. <b>Investment gain</b> is what the down payment plus closing costs would have earned in the market instead — the growth only, not the principal, so it's directly comparable to Net if sold. It reads green in years the market is ahead of the house and red once the house has passed it. <b>House vs. market</b> is Net if sold minus Investment gain — positive means buying came out ahead of putting the same cash in the market. <b>Other costs</b> covers maintenance, vacancy and turnover on a rental, or interior repairs and a reserve against special assessments on a condo. Taxes, insurance, HOA and other costs rise with escrow inflation; rent revenue rises with rent inflation. Excludes maintenance, vacancy, income tax on rent, and mortgage interest deduction.</p>
+  <p class="foot"><b>Paid in</b> is the down payment, closing costs, and every mortgage, tax, insurance, HOA and other-cost payment, less any rent revenue collected. <b>Net if sold</b> = equity − selling costs + rent you didn't pay − paid in. <b>Investment gain</b> is what the down payment plus closing costs would have earned in the market instead — the growth only, not the principal, so it's directly comparable to Net if sold. It reads green in years the market is ahead of the house and red once the house has passed it. <b>House vs. market</b> is Net if sold minus Investment gain — positive means buying came out ahead of putting the same cash in the market. Taxes, insurance, HOA and other costs rise with escrow inflation; rent revenue and equivalent rent rise with rent inflation. Excludes income tax on rental income, depreciation, the mortgage interest deduction, and any capital gains tax on either the house or the investment.</p></p>
 </div>
 
 <script>
@@ -190,7 +179,7 @@ const C=[
  {k:"tax",help:"Monthly property tax, i.e. the annual county bill divided by twelve.",label:"Property taxes",min:0,max:800,step:5,fmt:v=>"$"+v+"/mo"},
  {k:"ins",help:"Monthly homeowner's or landlord policy premium. Landlord coverage on a rented unit costs more than an owner-occupied policy.",label:"Insurance",min:0,max:500,step:5,fmt:v=>"$"+v+"/mo"},
  {k:"closing",help:"One-time lender fees, title, escrow and prepaid escrow due at closing. Set to zero if the seller covers them as a concession.",label:"Closing costs",min:0,max:20000,step:250,fmt:v=>"$"+v.toLocaleString()},
- {k:"other",help:"Maintenance, vacancy and turnover on a rental, or interior repairs and a reserve against special assessments on a condo. The line most often left out and most often underestimated.",label:"Other costs",min:0,max:1200,step:25,fmt:v=>"$"+v+"/mo"},
+ {k:"other",help:"Maintenance, vacancy and turnover on a rental, or interior repairs and a reserve against special assessments on a condo.",label:"Other costs",min:0,max:1200,step:25,fmt:v=>"$"+v+"/mo"},
  {k:"rent",help:"What it would cost you to rent somewhere equivalent. This is the alternative you are measured against, so it should reflect where you would actually live.",label:"Equivalent rent",min:800,max:3500,step:50,fmt:v=>"$"+v.toLocaleString()+"/mo"},
  {k:"rentrev",help:"Rent collected from a tenant. Subtracted from Paid in, since it offsets money leaving your pocket.",label:"Rent revenue",min:0,max:3500,step:50,fmt:v=>"$"+v.toLocaleString()+"/mo"},
  {k:"app",help:"How fast the property gains value each year. The single most influential slider, and the least knowable.",label:"Appreciation",min:-2,max:8,step:.25,fmt:v=>v.toFixed(2)+"%/yr"},
@@ -230,20 +219,13 @@ const controls=document.getElementById("controls");
 C.forEach(c=>{
   const d=document.createElement("div");d.className="field";
   d.innerHTML=`<div class="fhead">
-      <span><label for="${c.k}">${c.label}</label><button class="help" type="button"
-        aria-expanded="false" aria-controls="tip_${c.k}" aria-label="What is ${c.label}?">?</button></span>
+      <label for="${c.k}">${c.label}</label>
       <b id="v_${c.k}"></b>
     </div>
     <input type="range" id="${c.k}" min="${c.min}" max="${c.max}" step="${c.step}">
-    <p class="tip" id="tip_${c.k}" hidden>${c.help}</p>`;
+    <p class="tip">${c.help}</p>`;
   controls.appendChild(d);
   d.querySelector("input").addEventListener("input",e=>{S[c.k]=+e.target.value;render();});
-  const btn=d.querySelector("button.help"), tip=d.querySelector(".tip");
-  btn.addEventListener("click",()=>{
-    const open=btn.getAttribute("aria-expanded")==="true";
-    btn.setAttribute("aria-expanded",!open);
-    tip.hidden=open;
-  });
 });
 
 document.getElementById("reset").addEventListener("click",()=>load(active));
