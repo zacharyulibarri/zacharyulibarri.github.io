@@ -143,6 +143,7 @@ td{text-align:right;padding:7px 0;border-bottom:1px solid var(--rule)}
     <p class="headline" id="head"></p>
     <p class="headline alt" id="head2"></p>
     <p class="eyebrow" id="subhead"></p>
+    <p class="eyebrow" id="subhead2"></p>
     <svg class="chart" id="chart" viewBox="0 0 760 330" role="img" aria-label="Net if sold and investment gain over fifteen years"></svg>
     <p class="legend">
       <span><i class="swatch" style="background:var(--pine)"></i>Net if sold</span>
@@ -201,7 +202,16 @@ const C=[
  {k:"tax",help:"Annual county bill divided by twelve.",label:"Property taxes",min:0,max:800,step:5,fmt:v=>"$"+v+"/mo"},
  {k:"ins",help:"Landlord coverage on a rented unit costs more than an owner-occupied policy.",label:"Insurance",min:0,max:500,step:5,fmt:v=>"$"+v+"/mo"},
  {k:"closing",help:"Lender fees, title, escrow and prepaids. Zero if the seller concedes them.",label:"Closing costs",min:0,max:20000,step:250,fmt:v=>"$"+v.toLocaleString()},
- {k:"other",help:"Maintenance, vacancy and turnover on a rental, or interior repairs and a reserve against special assessments on a condo.",label:"Other costs",min:0,max:1200,step:25,fmt:v=>"$"+v+"/mo"},
+ {k:"other",help:"Maintenance, vacancy and turnover on a rental, or interior repairs and a reserve against special assessments on a condo.",
+  dyn:()=>{
+    const pct=(S.other*12/S.price*100).toFixed(2), maint=Math.round(S.price*0.01/12);
+    const head=`$${S.other}/mo is ${pct}% of purchase price per year.`;
+    if(S.rentrev>0){
+      const vac=Math.round(S.rentrev*0.06);
+      return `${head} The 1%/yr maintenance rule of thumb gives $${maint}/mo, plus about $${vac}/mo for 6% vacancy; anything above that covers turnover.`;
+    }
+    return `${head} The 1%/yr whole-building rule of thumb would be $${maint}/mo, but HOA dues already cover the structure, so this is interior repairs and an assessment reserve only.`;
+  },label:"Other costs",min:0,max:1200,step:25,fmt:v=>"$"+v+"/mo"},
  {k:"rent",help:"The alternative you are measured against. Set it to where you would actually live.",label:"Equivalent rent",min:800,max:3500,step:50,fmt:v=>"$"+v.toLocaleString()+"/mo"},
  {k:"rentrev",help:"Rent collected from a tenant. Subtracted from Paid in.",label:"Rent revenue",min:0,max:3500,step:50,fmt:v=>"$"+v.toLocaleString()+"/mo"},
  {k:"app",help:"How fast the property gains value each year.",label:"Appreciation",min:-2,max:8,step:.25,fmt:v=>v.toFixed(2)+"%/yr"},
@@ -254,7 +264,7 @@ C.forEach(c=>{
       <b id="v_${c.k}"></b>
     </div>
     <input type="range" id="${c.k}" min="${c.min}" max="${c.max}" step="${c.step}">
-    <p class="tip">${c.help}</p>`;
+    <p class="tip" id="tip_${c.k}">${c.help}</p>`;
   controls.appendChild(d);
   d.querySelector("input").addEventListener("input",e=>{S[c.k]=+e.target.value;render();});
 });
@@ -338,7 +348,10 @@ function money(n){
   return (n<0?"−$":"$")+Math.abs(Math.round(n)).toLocaleString();
 }
 function render(){
-  C.forEach(c=>document.getElementById("v_"+c.k).textContent=c.fmt(S[c.k]));
+  C.forEach(c=>{
+    document.getElementById("v_"+c.k).textContent=c.fmt(S[c.k]);
+    if(c.dyn) document.getElementById("tip_"+c.k).textContent=c.dyn();
+  });
   document.getElementById("reset").disabled=C.every(c=>S[c.k]===PRESETS[active][c.k]);
   const {rows,pmt}=model();
   const be=rows.find(r=>r.net>0);
@@ -352,10 +365,21 @@ function render(){
     ? `Month ${xo.m} <span class="unit">— ${(xo.m/12).toFixed(1)} years to beat the market</span>`
     : `Never beats the market inside 15 years`;
 
-  const out=pmt+S.hoa+S.tax+S.ins+S.other;
-  document.getElementById("subhead").textContent=
-    `Payment ${money(out)}/mo` + (S.rentrev>0?` · ${money(out-S.rentrev)} after rent`:"") +
-    ` · loan ${money(S.price-S.down)} · net at year 10 ${money(rows[119].net)}`;
+  const pay=pmt+S.hoa+S.tax+S.ins;          // what actually leaves the account monthly
+  const after=pay-S.rentrev;                 // your share once the tenant pays
+  const surplus=2*S.rentrev-pay;             // both sides rented
+  const col=v=>`<span class="${v>=0?"pos":"neg"}">${money(v)}</span>`;
+  document.getElementById("subhead").innerHTML =
+    `Payment ${money(pay)}/mo` +
+    (S.rentrev>0?` · ${money(after)} after rent`:"") +
+    ` · loan ${money(S.price-S.down)}` +
+    (S.rentrev>0?` · fully rented surplus ${col(surplus)}`:"");
+  const save=S.rentrev>0
+    ? `<span class="${S.other>surplus?"neg":"pos"}">${money(S.other)}</span>`
+    : money(S.other);
+  document.getElementById("subhead2").innerHTML =
+    `Recommended monthly savings for maintenance, vacancy and repairs ${save}` +
+    ` · net at year 10 ${col(rows[119].net)}`;
 
   drawChart(rows,be);
 
