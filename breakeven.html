@@ -32,7 +32,15 @@ body{
   font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.14em;
   text-transform:uppercase;color:var(--slate);margin:0 0 6px;
 }
-.presets{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 14px}
+.presets{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 14px;align-items:stretch}
+.pcell{display:flex;flex-direction:column;gap:4px}
+.plink{
+  font-family:"IBM Plex Mono",monospace;font-size:10px;letter-spacing:.1em;
+  text-transform:uppercase;color:var(--slate);text-decoration:none;
+  border-bottom:1px solid var(--rule);align-self:flex-start;padding-bottom:1px;
+}
+.plink:hover{color:var(--pine);border-color:var(--pine)}
+.plink:focus-visible{outline:2px solid var(--pine);outline-offset:2px}
 .themes{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 26px;align-items:center}
 .themes b{
   font-family:"IBM Plex Mono",monospace;font-size:10px;letter-spacing:.14em;
@@ -162,16 +170,19 @@ const PRESETS={
   },
   duplex:{
     name:"Lashley St Duplex", note:"475k · 472-474 Lashley",
+    url:"https://www.zillow.com/homedetails/472-474-Lashley-St-Longmont-CO-80504/463951155_zpid/",
     price:475000,down:100000,rate:6.5,hoa:0,tax:257,ins:225,closing:10000,other:550,
     app:3,rent:1700,rentrev:1600,rentinf:3,escinf:3,sell:7,ret:8
   },
   collyer:{
     name:"Collyer St Duplex", note:"550k · 2051-2053 Collyer",
+    url:"https://www.zillow.com/homedetails/2051-2053-Collyer-St-Longmont-CO-80501/462479398_zpid/",
     price:550000,down:110000,rate:6.5,hoa:0,tax:268,ins:210,closing:11000,other:625,
     app:3,rent:1700,rentrev:1600,rentinf:3,escinf:3,sell:7,ret:8
   },
   coffman:{
     name:"Coffman St Duplex", note:"625k · 1225-1227 S Coffman",
+    url:"https://www.zillow.com/homedetails/1225-1227-S-Coffman-St-Longmont-CO-80501/2061948886_zpid/",
     price:625000,down:125000,rate:6.5,hoa:0,tax:320,ins:240,closing:12500,other:850,
     app:3,rent:1700,rentrev:2100,rentinf:3,escinf:3,sell:7,ret:8
   }
@@ -199,11 +210,20 @@ const S={};
 
 const presets=document.getElementById("presets");
 Object.entries(PRESETS).forEach(([id,p])=>{
+  const cell=document.createElement("div");
+  cell.className="pcell";
   const b=document.createElement("button");
   b.className="preset";b.type="button";b.dataset.id=id;
   b.innerHTML=`${p.name}<small>${p.note}</small>`;
   b.addEventListener("click",()=>load(id));
-  presets.appendChild(b);
+  cell.appendChild(b);
+  if(p.url){
+    const a=document.createElement("a");
+    a.className="plink";a.href=p.url;a.target="_blank";a.rel="noopener";
+    a.textContent="Zillow ↗";
+    cell.appendChild(a);
+  }
+  presets.appendChild(cell);
 });
 
 const THEMES=[["night","Night"],["","Professional"]];
