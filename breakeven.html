@@ -164,44 +164,45 @@ td{text-align:right;padding:7px 0;border-bottom:1px solid var(--rule)}
 
 <script>
 const PRESETS={
-  condo:{
-    name:"Singing Hills Condo", note:"290k · Boulder",
-    price:290000,down:95000,rate:6.5,hoa:541,tax:217,ins:131,closing:7500,other:175,
-    app:3,rent:1700,rentrev:0,rentinf:3,escinf:3,sell:7,ret:8
-  },
-  duplex:{
-    name:"Lashley St Duplex", note:"475k · 472-474 Lashley",
-    url:"https://www.zillow.com/homedetails/472-474-Lashley-St-Longmont-CO-80504/463951155_zpid/",
-    price:475000,down:100000,rate:6.5,hoa:0,tax:257,ins:225,closing:10000,other:550,
+  merl:{
+    name:"Merl Pl Duplex", note:"450k · 1356-1358 Merl",
+    url:"https://www.zillow.com/homedetails/1356-1358-Merl-Pl-Longmont-CO-80501/464239046_zpid/",
+    price:450000,down:90000,rate:6.75,hoa:0,tax:289,ins:305,closing:2,other:525,
     app:3,rent:1700,rentrev:1600,rentinf:3,escinf:3,sell:7,ret:8
+  },
+  sorento:{
+    name:"Sorento Pl Duplex", note:"747k · 244-246 Sorento",
+    url:"https://www.zillow.com/homedetails/244-246-Sorento-Pl-Longmont-CO-80504/2062259050_zpid/",
+    price:747000,down:149400,rate:6.75,hoa:0,tax:390,ins:360,closing:1.7,other:1000,
+    app:3,rent:1700,rentrev:2200,rentinf:3,escinf:3,sell:7,ret:8
   },
   collyer:{
     name:"Collyer St Duplex", note:"550k · 2051-2053 Collyer",
     url:"https://www.zillow.com/homedetails/2051-2053-Collyer-St-Longmont-CO-80501/462479398_zpid/",
-    price:550000,down:110000,rate:6.5,hoa:0,tax:268,ins:210,closing:11000,other:625,
+    price:550000,down:110000,rate:6.75,hoa:0,tax:268,ins:324,closing:1.78,other:625,
     app:3,rent:1700,rentrev:1600,rentinf:3,escinf:3,sell:7,ret:8
   },
   parker:{
     name:"Parker Dr Duplex", note:"639k · 1306-1308 Parker",
     url:"https://www.zillow.com/homedetails/1306-1308-Parker-Dr-Longmont-CO-80501/2061954701_zpid/",
-    price:639000,down:127800,rate:6.5,hoa:0,tax:326,ins:260,closing:12800,other:850,
+    price:639000,down:127800,rate:6.75,hoa:0,tax:326,ins:336,closing:1.7,other:850,
     app:3,rent:1700,rentrev:2200,rentinf:3,escinf:3,sell:7,ret:8
   },
   coffman:{
     name:"Coffman St Duplex", note:"625k · 1225-1227 S Coffman",
     url:"https://www.zillow.com/homedetails/1225-1227-S-Coffman-St-Longmont-CO-80501/2061948886_zpid/",
-    price:625000,down:125000,rate:6.5,hoa:0,tax:320,ins:240,closing:12500,other:850,
+    price:625000,down:125000,rate:6.75,hoa:0,tax:320,ins:335,closing:1.65,other:850,
     app:3,rent:1700,rentrev:2100,rentinf:3,escinf:3,sell:7,ret:8
   }
 };
 const C=[
- {k:"price",help:"Drives appreciation, selling costs and the loan size.",label:"Purchase price",min:200000,max:700000,step:5000,fmt:v=>"$"+v.toLocaleString()},
+ {k:"price",help:"Drives appreciation, selling costs and the loan size.",label:"Purchase price",min:200000,max:800000,step:5000,fmt:v=>"$"+v.toLocaleString()},
  {k:"down",help:"Above 20% avoids mortgage insurance. Also the sum invested instead under Stock market growth.",label:"Down payment",min:20000,max:250000,step:5000,fmt:v=>"$"+v.toLocaleString()},
  {k:"rate",help:"Fixed for 30 years. Affects principal and interest only.",label:"Interest rate",min:4,max:9,step:.125,fmt:v=>v.toFixed(3)+"%"},
  {k:"hoa",help:"Buys no equity. Rises with escrow inflation.",label:"HOA dues",min:0,max:900,step:10,fmt:v=>"$"+v+"/mo"},
  {k:"tax",help:"Annual county bill divided by twelve.",label:"Property taxes",min:0,max:800,step:5,fmt:v=>"$"+v+"/mo"},
  {k:"ins",help:"Landlord coverage on a rented unit costs more than an owner-occupied policy.",label:"Insurance",min:0,max:500,step:5,fmt:v=>"$"+v+"/mo"},
- {k:"closing",help:"Lender fees, title, escrow and prepaids. Zero if the seller concedes them.",label:"Closing costs",min:0,max:20000,step:250,fmt:v=>"$"+v.toLocaleString()},
+ {k:"closing",help:"Lender fees, title, escrow and prepaids, as a share of price. Zero if the seller concedes them.",label:"Closing costs",min:0,max:5,step:.25,fmt:v=>v.toFixed(2)+"% ($"+Math.round(S.price*v/100).toLocaleString()+")"},
  {k:"other",help:"Maintenance, vacancy and turnover on a rental, or interior repairs and a reserve against special assessments on a condo.",
   dyn:()=>{
     const pct=(S.other*12/S.price*100).toFixed(2), maint=Math.round(S.price*0.01/12);
@@ -221,7 +222,7 @@ const C=[
  {k:"ret",help:"Return if the down payment and closing costs went to the market instead. Long-run S&P is roughly 10% nominal before tax.",label:"Stock market growth",min:0,max:12,step:.25,fmt:v=>v.toFixed(2)+"%/yr"}
 ];
 const MONTHS=180;
-let active="condo";
+let active="merl";
 const S={};
 
 const presets=document.getElementById("presets");
@@ -283,7 +284,8 @@ function model(){
   const loan=Math.max(S.price-S.down,0);
   const r=S.rate/100/12;
   const pmt=r>0?loan*r/(1-Math.pow(1+r,-360)):loan/360;
-  let bal=loan, paid=S.down+S.closing, rent=0;
+  const closingCash=S.price*S.closing/100;
+  let bal=loan, paid=S.down+closingCash, rent=0;
   const rows=[];
   for(let m=1;m<=MONTHS;m++){
     const y=Math.floor((m-1)/12);
@@ -295,7 +297,7 @@ function model(){
     rent+=S.rent*Math.pow(1+S.rentinf/100,y);
     const val=S.price*Math.pow(1+S.app/100,m/12);
     const eq=val-bal;
-    const gain=(S.down+S.closing)*(Math.pow(1+S.ret/100/12,m)-1);
+    const gain=(S.down+closingCash)*(Math.pow(1+S.ret/100/12,m)-1);
     rows.push({m,val,eq,paid,rent,gain,net:eq-val*S.sell/100+rent-paid});
   }
   return {rows,pmt};
@@ -395,7 +397,7 @@ function render(){
   });
 }
 document.body.dataset.theme="night";
-load("condo");
+load("merl");
 </script>
 </body>
 </html>
